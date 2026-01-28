@@ -19,6 +19,7 @@ if not api_key:
 client = OpenAI(api_key=api_key)
 
 def translate_batch(batch_dict):
+    """Отправка пачки текста на перевод в OpenAI."""
     if not batch_dict: 
         return {}
     try:
@@ -62,7 +63,7 @@ def main():
 
     try:
         excel = win32.Dispatch("Excel.Application")
-        excel.Visible = True
+        excel.Visible = False  
         excel.DisplayAlerts = False
         wb = excel.Workbooks.Open(input_file)
     except Exception as e:
@@ -70,55 +71,71 @@ def main():
         return
 
     try:
-        for sheet in wb.Sheets:
-            print(f"\nОбработка листа: {sheet.Name}")
+        total_sheets = wb.Sheets.Count
+
+        for index, sheet in enumerate(wb.Sheets, 1):
             used_range = sheet.UsedRange
             
-            batch = {}
-            cells_in_batch = []
-            
+            cells_to_translate = []
             for r in range(1, used_range.Rows.Count + 1):
                 for c in range(1, used_range.Columns.Count + 1):
                     cell = used_range.Cells(r, c)
                     val = cell.Value
-                    
                     if isinstance(val, str) and len(val.strip()) > 1:
                         if not str(cell.Formula).startswith('='):
-                            batch[cell.GetAddress()] = val
-                            cells_in_batch.append(cell)
-                            
-                            if len(batch) >= 30:
-                                res = translate_batch(batch)
-                                if res is None:
-                                    print("\n[СТОП] Ошибка API.")
-                                    wb.Close(False)
-                                    excel.Quit()
-                                    sys.exit()
-                                
-                                for c_obj in cells_in_batch:
-                                    addr = c_obj.GetAddress()
-                                    if addr in res:
-                                        c_obj.Value = res[addr]
-                                
-                                print(f"Пачка переведена...")
-                                batch, cells_in_batch = {}, []
+                            cells_to_translate.append(cell)
 
-            if batch:
-                res = translate_batch(batch)
-                if res:
-                    for c_obj in cells_in_batch:
-                        addr = c_obj.GetAddress()
-                        if addr in res:
-                            c_obj.Value = res[addr]
+            total_cells = len(cells_to_translate)
+            
+            if total_cells == 0:
+                print(f"Лист [{index}/{total_sheets}]: {sheet.Name} Прогресс: 100% ✅ (Нет текста)")
+                continue
 
+            batch = {}
+            processed_count = 0
+            
+            sys.stdout.write(f"Лист [{index}/{total_sheets}]: {sheet.Name} Прогресс: 0%")
+            sys.stdout.flush()
+
+            for i, cell in enumerate(cells_to_translate):
+                batch[cell.GetAddress()] = cell.Value
+                
+                # Переводим, если набрали 30 ячеек или это последняя ячейка на листе
+                if len(batch) >= 30 or i == total_cells - 1:
+                    res = translate_batch(batch)
+                    
+                    if res is None:
+                        print(f"\n[СТОП] Ошибка API на листе {sheet.Name}.")
+                        wb.Close(False)
+                        excel.Quit()
+                        sys.exit()
+
+                    # Запись перевода обратно в Excel
+                    for addr, translated_text in res.items():
+                        sheet.Range(addr).Value = translated_text
+                    
+                    processed_count += len(batch)
+                    percent = min(100, int((processed_count / total_cells) * 100))
+                    
+                    # Обновление прогресса в той же строке
+                    sys.stdout.write(f"\rЛист [{index}/{total_sheets}]: {sheet.Name} Прогресс: {percent}%")
+                    sys.stdout.flush()
+                    
+                    batch = {}
+
+            # Финальная галочка и переход на новую строку
+            sys.stdout.write(" ✅\n")
+            sys.stdout.flush()
+
+        # Сохранение результата
         wb.SaveAs(output_file)
-        print(f"\n[УСПЕХ] Готово! Файл в output: {os.path.basename(output_file)}")
+        print(f"\nГотово! Результат в: output/{os.path.basename(output_file)}")
 
     except Exception as e:
         print(f"\n[ОШИБКА]: {e}")
-        wb.Close(False)
+        if 'wb' in locals(): wb.Close(False)
     finally:
-        excel.Quit()
+        if 'excel' in locals(): excel.Quit()
 
 if __name__ == "__main__":
     main()
