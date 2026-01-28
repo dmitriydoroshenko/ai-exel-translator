@@ -119,7 +119,15 @@ def main():
 
                     # Запись перевода обратно в Excel
                     for addr, translated_text in res.items():
-                        sheet.Range(addr).Value = translated_text
+                        cell_range = sheet.Range(addr)
+                        cell_range.Value = translated_text
+                        
+                        # Принудительно ставим шрифт для китайских иероглифов
+                        try:
+                            cell_range.Font.Name = "Microsoft YaHei"
+                        except Exception:
+                            # На случай, если Microsoft YaHei не установлен, используем стандартный SimSun
+                            cell_range.Font.Name = "SimSun"
                     
                     processed_count += len(batch)
                     percent = min(100, int((processed_count / total_cells) * 100))
