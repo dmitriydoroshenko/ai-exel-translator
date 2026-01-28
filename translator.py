@@ -31,7 +31,7 @@ def translate_batch(batch_dict):
         )
 
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5.2",
             messages=[
                 {"role": "system", "content": SYSTEM_ROLE},
                 {"role": "user", "content": json.dumps(batch_dict, ensure_ascii=False)}
