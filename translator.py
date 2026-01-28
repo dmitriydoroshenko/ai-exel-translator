@@ -23,10 +23,17 @@ def translate_batch(batch_dict):
     if not batch_dict: 
         return {}
     try:
+        SYSTEM_ROLE = (
+            "You are a professional mobile game localizer (English to Simplified Chinese). "
+            "Expertise: gaming terminology, UI/UX constraints, and mobile gaming slang. "
+            "Task: Translate values to Simplified Chinese. Keep keys unchanged. "
+            "Output: Return a valid JSON object."
+        )
+
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a professional translator. Return JSON with same keys but Russian translations."},
+                {"role": "system", "content": SYSTEM_ROLE},
                 {"role": "user", "content": json.dumps(batch_dict, ensure_ascii=False)}
             ],
             response_format={"type": "json_object"},
