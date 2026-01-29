@@ -89,10 +89,8 @@ def main():
 
         for index, sheet in enumerate(wb.Sheets, 1):
             used_range = sheet.UsedRange
-            
             to_translate = []
             
-            # 1. Сбор ячеек
             for r in range(1, used_range.Rows.Count + 1):
                 for c in range(1, used_range.Columns.Count + 1):
                     cell = used_range.Cells(r, c)
@@ -101,23 +99,19 @@ def main():
                         if not str(cell.Formula).startswith('='):
                             to_translate.append((cell.GetAddress(), val))
 
-            # 2. Сбор заголовков диаграмм
             for chart_obj in sheet.ChartObjects():
                 if chart_obj.Chart.HasTitle:
                     title = chart_obj.Chart.ChartTitle.Text
                     if title and len(title.strip()) > 1:
-                        # Используем уникальный префикс, чтобы отличить от адреса ячейки
                         to_translate.append((f"CHART:{chart_obj.Name}", title))
 
             total_items = len(to_translate)
-            
             if total_items == 0:
-                print(f"Лист [{index}/{total_sheets}]: {sheet.Name} Прогресс: 100% ✅ (Нет текста)")
+                print(f"Лист [{index}/{total_sheets}]: {sheet.Name} Прогресс: 100% ✅")
                 continue
 
             batch = {}
             processed_count = 0
-            
             sys.stdout.write(f"Лист [{index}/{total_sheets}]: {sheet.Name} Прогресс: 0%")
             sys.stdout.flush()
 
@@ -128,24 +122,35 @@ def main():
                     res = translate_batch(batch)
                     
                     if res is None:
-                        print(f"\n[СТОП] Ошибка API на листе {sheet.Name}.")
+                        print(f"\n[СТОП] Ошибка API.")
                         wb.Close(False)
                         excel.Quit()
                         sys.exit()
 
                     for key, translated_text in res.items():
                         if key.startswith("CHART:"):
-                            # Обновляем заголовок диаграммы
                             c_name = key.replace("CHART:", "")
-                            sheet.ChartObjects(c_name).Chart.ChartTitle.Text = translated_text
+                            chart = sheet.ChartObjects(c_name).Chart
+                            chart.ChartTitle.Text = translated_text
+                            
+                            try:
+                                chart.ChartTitle.Font.Name = "Microsoft YaHei"
+                                for axis in chart.Axes():
+                                    try:
+                                        axis.TickLabels.Font.Name = "Microsoft YaHei"
+                                    except: pass
+                                if chart.HasLegend:
+                                    chart.Legend.Font.Name = "Microsoft YaHei"
+                                    
+                            except:
+                                pass
                         else:
-                            # Обновляем ячейку
                             cell_range = sheet.Range(key)
                             cell_range.Value = translated_text
                             try:
                                 cell_range.Font.Name = "Microsoft YaHei"
-                            except Exception:
-                                cell_range.Font.Name = "SimSun"
+                            except:
+                                pass
                     
                     processed_count += len(batch)
                     percent = min(100, int((processed_count / total_items) * 100))
