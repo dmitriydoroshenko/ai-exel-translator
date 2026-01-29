@@ -90,18 +90,28 @@ def main():
         for index, sheet in enumerate(wb.Sheets, 1):
             used_range = sheet.UsedRange
             
-            cells_to_translate = []
+            to_translate = []
+            
+            # 1. Сбор ячеек
             for r in range(1, used_range.Rows.Count + 1):
                 for c in range(1, used_range.Columns.Count + 1):
                     cell = used_range.Cells(r, c)
                     val = cell.Value
                     if isinstance(val, str) and len(val.strip()) > 1:
                         if not str(cell.Formula).startswith('='):
-                            cells_to_translate.append(cell)
+                            to_translate.append((cell.GetAddress(), val))
 
-            total_cells = len(cells_to_translate)
+            # 2. Сбор заголовков диаграмм
+            for chart_obj in sheet.ChartObjects():
+                if chart_obj.Chart.HasTitle:
+                    title = chart_obj.Chart.ChartTitle.Text
+                    if title and len(title.strip()) > 1:
+                        # Используем уникальный префикс, чтобы отличить от адреса ячейки
+                        to_translate.append((f"CHART:{chart_obj.Name}", title))
+
+            total_items = len(to_translate)
             
-            if total_cells == 0:
+            if total_items == 0:
                 print(f"Лист [{index}/{total_sheets}]: {sheet.Name} Прогресс: 100% ✅ (Нет текста)")
                 continue
 
@@ -111,10 +121,10 @@ def main():
             sys.stdout.write(f"Лист [{index}/{total_sheets}]: {sheet.Name} Прогресс: 0%")
             sys.stdout.flush()
 
-            for i, cell in enumerate(cells_to_translate):
-                batch[cell.GetAddress()] = cell.Value
+            for i, (identifier, original_text) in enumerate(to_translate):
+                batch[identifier] = original_text
                 
-                if len(batch) >= 30 or i == total_cells - 1:
+                if len(batch) >= 30 or i == total_items - 1:
                     res = translate_batch(batch)
                     
                     if res is None:
@@ -123,21 +133,24 @@ def main():
                         excel.Quit()
                         sys.exit()
 
-                    for addr, translated_text in res.items():
-                        cell_range = sheet.Range(addr)
-                        cell_range.Value = translated_text
-                        
-                        try:
-                            cell_range.Font.Name = "Microsoft YaHei"
-                        except Exception:
-                            cell_range.Font.Name = "SimSun"
+                    for key, translated_text in res.items():
+                        if key.startswith("CHART:"):
+                            # Обновляем заголовок диаграммы
+                            c_name = key.replace("CHART:", "")
+                            sheet.ChartObjects(c_name).Chart.ChartTitle.Text = translated_text
+                        else:
+                            # Обновляем ячейку
+                            cell_range = sheet.Range(key)
+                            cell_range.Value = translated_text
+                            try:
+                                cell_range.Font.Name = "Microsoft YaHei"
+                            except Exception:
+                                cell_range.Font.Name = "SimSun"
                     
                     processed_count += len(batch)
-                    percent = min(100, int((processed_count / total_cells) * 100))
-                    
+                    percent = min(100, int((processed_count / total_items) * 100))
                     sys.stdout.write(f"\rЛист [{index}/{total_sheets}]: {sheet.Name} Прогресс: {percent}%")
                     sys.stdout.flush()
-                    
                     batch = {}
 
             sys.stdout.write(" ✅\n")
