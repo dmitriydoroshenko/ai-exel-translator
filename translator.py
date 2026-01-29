@@ -153,4 +153,14 @@ def main():
         if 'excel' in locals(): excel.Quit()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n[STOP] Программа остановлена. Очистка ресурсов...")
+        try:
+            excel_app = win32.GetActiveObject("Excel.Application")
+            excel_app.Quit()
+            print("Процесс Excel успешно завершен.")
+        except Exception:
+            pass
+        sys.exit(0)
