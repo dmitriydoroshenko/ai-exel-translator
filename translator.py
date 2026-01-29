@@ -89,7 +89,10 @@ def main():
 
         for index, sheet in enumerate(wb.Sheets, 1):
             used_range = sheet.UsedRange
-            to_translate = []
+            
+            # --- 1. СБОР ДАННЫХ И ПОИСК УНИКАЛЬНЫХ СТРОК ---
+            cell_mapping = []  # Список кортежей (адрес, текст)
+            unique_texts = set() # Множество для уникальных фраз
             
             for r in range(1, used_range.Rows.Count + 1):
                 for c in range(1, used_range.Columns.Count + 1):
@@ -97,66 +100,62 @@ def main():
                     val = cell.Value
                     if isinstance(val, str) and len(val.strip()) > 1:
                         if not str(cell.Formula).startswith('='):
-                            to_translate.append((cell.GetAddress(), val))
+                            text = val.strip()
+                            cell_mapping.append((cell.GetAddress(), text))
+                            unique_texts.add(text)
 
             for chart_obj in sheet.ChartObjects():
                 if chart_obj.Chart.HasTitle:
                     title = chart_obj.Chart.ChartTitle.Text
                     if title and len(title.strip()) > 1:
-                        to_translate.append((f"CHART:{chart_obj.Name}", title))
+                        text = title.strip()
+                        cell_mapping.append((f"CHART:{chart_obj.Name}", text))
+                        unique_texts.add(text)
 
-            total_items = len(to_translate)
-            if total_items == 0:
+            if not unique_texts:
                 print(f"Лист [{index}/{total_sheets}]: {sheet.Name} Прогресс: 100% ✅")
                 continue
 
-            batch = {}
-            processed_count = 0
-            sys.stdout.write(f"Лист [{index}/{total_sheets}]: {sheet.Name} Прогресс: 0%")
+            # --- 2. ПЕРЕВОД ТОЛЬКО УНИКАЛЬНЫХ ЗНАЧЕНИЙ ---
+            unique_list = list(unique_texts)
+            translations_cache = {} 
+            sys.stdout.write(f"Лист [{index}/{total_sheets}]: {sheet.Name} Обработка ({len(unique_list)} уникальных строк)...")
             sys.stdout.flush()
 
-            for i, (identifier, original_text) in enumerate(to_translate):
-                batch[identifier] = original_text
+            for i in range(0, len(unique_list), 30):
+                batch = {f"id_{j}": text for j, text in enumerate(unique_list[i:i+30])}
+                res = translate_batch(batch)
                 
-                if len(batch) >= 30 or i == total_items - 1:
-                    res = translate_batch(batch)
-                    
-                    if res is None:
-                        print(f"\n[СТОП] Ошибка API.")
-                        wb.Close(False)
-                        excel.Quit()
-                        sys.exit()
+                if res is None:
+                    print(f"\n[СТОП] Ошибка API.")
+                    wb.Close(False); excel.Quit(); sys.exit()
 
-                    for key, translated_text in res.items():
-                        if key.startswith("CHART:"):
-                            c_name = key.replace("CHART:", "")
-                            chart = sheet.ChartObjects(c_name).Chart
-                            chart.ChartTitle.Text = translated_text
-                            
-                            try:
-                                chart.ChartTitle.Font.Name = "Microsoft YaHei"
-                                for axis in chart.Axes():
-                                    try:
-                                        axis.TickLabels.Font.Name = "Microsoft YaHei"
-                                    except: pass
-                                if chart.HasLegend:
-                                    chart.Legend.Font.Name = "Microsoft YaHei"
-                                    
-                            except:
-                                pass
-                        else:
-                            cell_range = sheet.Range(key)
-                            cell_range.Value = translated_text
-                            try:
-                                cell_range.Font.Name = "Microsoft YaHei"
-                            except:
-                                pass
-                    
-                    processed_count += len(batch)
-                    percent = min(100, int((processed_count / total_items) * 100))
-                    sys.stdout.write(f"\rЛист [{index}/{total_sheets}]: {sheet.Name} Прогресс: {percent}%")
-                    sys.stdout.flush()
-                    batch = {}
+                for batch_id, trans_text in res.items():
+                    orig_text = batch[batch_id]
+                    translations_cache[orig_text] = trans_text
+
+            # --- 3. ЗАПИСЬ ПЕРЕВОДА В ЯЧЕЙКИ ИЗ КЭША ---
+            for identifier, original_text in cell_mapping:
+                translated_text = translations_cache.get(original_text, original_text)
+                
+                if identifier.startswith("CHART:"):
+                    c_name = identifier.replace("CHART:", "")
+                    chart = sheet.ChartObjects(c_name).Chart
+                    chart.ChartTitle.Text = translated_text
+                    try:
+                        chart.ChartTitle.Font.Name = "Microsoft YaHei"
+                        for axis in chart.Axes():
+                            try: axis.TickLabels.Font.Name = "Microsoft YaHei"
+                            except: pass
+                        if chart.HasLegend:
+                            chart.Legend.Font.Name = "Microsoft YaHei"
+                    except: pass
+                else:
+                    cell_range = sheet.Range(identifier)
+                    cell_range.Value = translated_text
+                    try:
+                        cell_range.Font.Name = "Microsoft YaHei"
+                    except: pass
 
             sys.stdout.write(" ✅\n")
             sys.stdout.flush()
