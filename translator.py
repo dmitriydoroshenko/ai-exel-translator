@@ -64,7 +64,6 @@ def main():
         return
 
     input_file = os.path.join(input_folder, filename)
-    
     name_part, extension = os.path.splitext(filename)
     output_file = os.path.join(output_folder, f"{name_part}_cn{extension}")
 
@@ -78,6 +77,14 @@ def main():
         return
 
     try:
+        print("Перевод названий листов...")
+        sheet_names = {s.Name: s.Name for s in wb.Sheets}
+        translated_names = translate_batch(sheet_names)
+        if translated_names:
+            for sheet in wb.Sheets:
+                if sheet.Name in translated_names:
+                    sheet.Name = translated_names[sheet.Name][:31]
+
         total_sheets = wb.Sheets.Count
 
         for index, sheet in enumerate(wb.Sheets, 1):
@@ -107,7 +114,6 @@ def main():
             for i, cell in enumerate(cells_to_translate):
                 batch[cell.GetAddress()] = cell.Value
                 
-                # Переводим, если набрали 30 ячеек или это последняя ячейка на листе
                 if len(batch) >= 30 or i == total_cells - 1:
                     res = translate_batch(batch)
                     
@@ -117,32 +123,26 @@ def main():
                         excel.Quit()
                         sys.exit()
 
-                    # Запись перевода обратно в Excel
                     for addr, translated_text in res.items():
                         cell_range = sheet.Range(addr)
                         cell_range.Value = translated_text
                         
-                        # Принудительно ставим шрифт для китайских иероглифов
                         try:
                             cell_range.Font.Name = "Microsoft YaHei"
                         except Exception:
-                            # На случай, если Microsoft YaHei не установлен, используем стандартный SimSun
                             cell_range.Font.Name = "SimSun"
                     
                     processed_count += len(batch)
                     percent = min(100, int((processed_count / total_cells) * 100))
                     
-                    # Обновление прогресса в той же строке
                     sys.stdout.write(f"\rЛист [{index}/{total_sheets}]: {sheet.Name} Прогресс: {percent}%")
                     sys.stdout.flush()
                     
                     batch = {}
 
-            # Финальная галочка и переход на новую строку
             sys.stdout.write(" ✅\n")
             sys.stdout.flush()
 
-        # Сохранение результата
         wb.SaveAs(output_file)
         print(f"\nГотово! Результат в: output/{os.path.basename(output_file)}")
 
