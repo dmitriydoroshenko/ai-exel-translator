@@ -43,7 +43,7 @@ def translate_batch(batch_dict):
             timeout=30
         )
         result = json.loads(response.choices[0].message.content)
-        return result if result else None
+        return result if result else {}
     except Exception as e:
         print(f"\n[КРИТИЧЕСКАЯ ОШИБКА API]: {e}")
         return None
@@ -70,16 +70,14 @@ def main():
     name_part, extension = os.path.splitext(filename)
     output_file = os.path.join(output_folder, f"{name_part}_cn{extension}")
 
+    translations_cache = {} 
+
     try:
         excel = win32.Dispatch("Excel.Application")
         excel.Visible = False  
         excel.DisplayAlerts = False
         wb = excel.Workbooks.Open(input_file)
-    except Exception as e:
-        print(f"Не удалось запустить Excel: {e}")
-        return
-
-    try:
+        
         print("Перевод названий листов...")
         sheet_names = {s.Name: s.Name for s in wb.Sheets}
         translated_names = translate_batch(sheet_names)
@@ -93,10 +91,8 @@ def main():
         for index, sheet in enumerate(wb.Sheets, 1):
             print(f"Лист [{index}/{total_sheets}]: {sheet.Name} — Сбор данных...")
             used_range = sheet.UsedRange
-            
-            # --- 1. СБОР ДАННЫХ И ПОИСК УНИКАЛЬНЫХ СТРОК ---
-            cell_mapping = []  # Список кортежей (адрес, текст)
-            unique_texts = set() # Множество для уникальных фраз
+            cell_mapping = []  
+            unique_texts_to_translate = set() 
             
             for r in range(1, used_range.Rows.Count + 1):
                 for c in range(1, used_range.Columns.Count + 1):
@@ -106,7 +102,8 @@ def main():
                         if not str(cell.Formula).startswith('='):
                             text = val.strip()
                             cell_mapping.append((cell.GetAddress(), text))
-                            unique_texts.add(text)
+                            if text not in translations_cache:
+                                unique_texts_to_translate.add(text)
 
             for chart_obj in sheet.ChartObjects():
                 if chart_obj.Chart.HasTitle:
@@ -114,31 +111,25 @@ def main():
                     if title and len(title.strip()) > 1:
                         text = title.strip()
                         cell_mapping.append((f"CHART:{chart_obj.Name}", text))
-                        unique_texts.add(text)
+                        if text not in translations_cache:
+                            unique_texts_to_translate.add(text)
 
-            if not unique_texts:
-                print(f"Лист [{index}/{total_sheets}]: {sheet.Name} Прогресс: 100% ✅")
-                continue
+            if unique_texts_to_translate:
+                unique_list = list(unique_texts_to_translate)
+                sys.stdout.write(f" -> API: {len(unique_list)} новых строк...")
+                sys.stdout.flush()
 
-            # --- 2. ПЕРЕВОД ТОЛЬКО УНИКАЛЬНЫХ ЗНАЧЕНИЙ ---
-            unique_list = list(unique_texts)
-            translations_cache = {} 
-            sys.stdout.write(f" -> Перевод {len(unique_list)} строк через API...")
-            sys.stdout.flush()
+                for i in range(0, len(unique_list), 30):
+                    batch = {f"id_{j}": text for j, text in enumerate(unique_list[i:i+30])}
+                    res = translate_batch(batch)
+                    if res is None:
+                        wb.Close(False); excel.Quit(); sys.exit()
 
-            for i in range(0, len(unique_list), 30):
-                batch = {f"id_{j}": text for j, text in enumerate(unique_list[i:i+30])}
-                res = translate_batch(batch)
-                
-                if res is None:
-                    print(f"\n[СТОП] Ошибка API.")
-                    wb.Close(False); excel.Quit(); sys.exit()
+                    for batch_id, trans_text in res.items():
+                        orig_text = batch[batch_id]
+                        translations_cache[orig_text] = trans_text
+                sys.stdout.write(" ✅\n")
 
-                for batch_id, trans_text in res.items():
-                    orig_text = batch[batch_id]
-                    translations_cache[orig_text] = trans_text
-
-            # --- 3. ЗАПИСЬ ПЕРЕВОДА В ЯЧЕЙКИ ИЗ КЭША ---
             for identifier, original_text in cell_mapping:
                 translated_text = translations_cache.get(original_text, original_text)
                 
@@ -151,18 +142,12 @@ def main():
                         for axis in chart.Axes():
                             try: axis.TickLabels.Font.Name = "Microsoft YaHei"
                             except: pass
-                        if chart.HasLegend:
-                            chart.Legend.Font.Name = "Microsoft YaHei"
                     except: pass
                 else:
                     cell_range = sheet.Range(identifier)
                     cell_range.Value = translated_text
-                    try:
-                        cell_range.Font.Name = "Microsoft YaHei"
+                    try: cell_range.Font.Name = "Microsoft YaHei"
                     except: pass
-
-            sys.stdout.write(" ✅\n")
-            sys.stdout.flush()
 
         wb.SaveAs(output_file)
         print(f"\nГотово! Результат в: output/{os.path.basename(output_file)}")
