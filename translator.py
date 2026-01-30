@@ -28,7 +28,7 @@ def translate_batch(batch_dict):
             "Expertise: gaming terminology, UI/UX constraints, and mobile gaming slang. "
             "\n\nSTRICT RULES:\n"
             "1. DO NOT translate game titles, bundle names, or offer names. Keep them in English.\n"
-            "2. Translate all other values to Simplified Chinese.\n"
+            "2. Translate other values to Simplified Chinese.\n"
             "3. Keep JSON keys unchanged.\n"
             "4. Return a valid JSON object."
         )
