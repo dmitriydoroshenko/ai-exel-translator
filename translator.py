@@ -26,8 +26,11 @@ def translate_batch(batch_dict):
         SYSTEM_ROLE = (
             "You are a professional mobile game localizer (English to Simplified Chinese). "
             "Expertise: gaming terminology, UI/UX constraints, and mobile gaming slang. "
-            "Task: Translate values to Simplified Chinese. Keep keys unchanged. "
-            "Output: Return a valid JSON object."
+            "\n\nSTRICT RULES:\n"
+            "1. DO NOT translate game titles, bundle names, or offer names. Keep them in English.\n"
+            "2. Translate all other values to Simplified Chinese.\n"
+            "3. Keep JSON keys unchanged.\n"
+            "4. Return a valid JSON object."
         )
 
         response = client.chat.completions.create(
@@ -88,6 +91,7 @@ def main():
         total_sheets = wb.Sheets.Count
 
         for index, sheet in enumerate(wb.Sheets, 1):
+            print(f"Лист [{index}/{total_sheets}]: {sheet.Name} — Сбор данных...")
             used_range = sheet.UsedRange
             
             # --- 1. СБОР ДАННЫХ И ПОИСК УНИКАЛЬНЫХ СТРОК ---
@@ -119,7 +123,7 @@ def main():
             # --- 2. ПЕРЕВОД ТОЛЬКО УНИКАЛЬНЫХ ЗНАЧЕНИЙ ---
             unique_list = list(unique_texts)
             translations_cache = {} 
-            sys.stdout.write(f"Лист [{index}/{total_sheets}]: {sheet.Name} Обработка ({len(unique_list)} уникальных строк)...")
+            sys.stdout.write(f" -> Перевод {len(unique_list)} строк через API...")
             sys.stdout.flush()
 
             for i in range(0, len(unique_list), 30):
