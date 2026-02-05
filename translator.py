@@ -9,6 +9,10 @@ from openai import OpenAI
 
 load_dotenv()
 
+# Цены за 1 млн токенов
+PRICE_IN = 2.50 
+PRICE_OUT = 10.00
+
 if sys.stdout.encoding != 'utf-8':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
@@ -19,8 +23,12 @@ if not api_key:
 
 client = OpenAI(api_key=api_key)
 
+total_in = 0
+total_out = 0
+
 def translate_batch(batch_dict):
     """Отправка пачки текста на перевод в OpenAI."""
+    global total_in, total_out
     if not batch_dict: 
         return {}
     try:
@@ -43,6 +51,10 @@ def translate_batch(batch_dict):
             response_format={"type": "json_object"},
             timeout=30
         )
+
+        if response.usage:
+            total_in += response.usage.prompt_tokens
+            total_out += response.usage.completion_tokens
 
         content = response.choices[0].message.content
         
@@ -126,7 +138,7 @@ def main():
 
             if unique_texts_to_translate:
                 unique_list = list(unique_texts_to_translate)
-                sys.stdout.write(f" -> API: {len(unique_list)} новых строк...")
+                sys.stdout.write(f" -> Перевод {len(unique_list)} новых строк...")
                 sys.stdout.flush()
 
                 for i in range(0, len(unique_list), 30):
@@ -160,13 +172,16 @@ def main():
                     except: pass
 
         wb.SaveAs(output_file)
-        print(f"\nГотово! Результат в: output/{os.path.basename(output_file)}")
 
         end_time = time.time()
         duration = end_time - start_time
-        minutes = int(duration // 60)
-        seconds = int(duration % 60)
-        print(f"Общее время выполнения: {minutes} мин. {seconds} сек.")
+        
+        total_cost = (total_in / 1_000_000 * PRICE_IN) + (total_out / 1_000_000 * PRICE_OUT)
+
+        print(f"\nГотово! Результат в: output/{os.path.basename(output_file)}")
+        print(f"Токены: {total_out + total_in} | Стоимость: ${total_cost:.4f}")
+        print(f"Общее время: {int(duration // 60)} мин. {int(duration % 60)} сек.")
+        
 
     except Exception as e:
         print(f"\n[ОШИБКА]: {e}")
