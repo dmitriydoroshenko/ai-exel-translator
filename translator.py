@@ -3,6 +3,7 @@ import os
 import json
 import sys
 import io
+import time
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -57,6 +58,7 @@ def translate_batch(batch_dict):
         return None
 
 def main():
+    start_time = time.time()
     script_dir = os.path.dirname(os.path.abspath(__file__))
     input_folder = os.path.join(script_dir, "input")
     output_folder = os.path.join(script_dir, "output")
@@ -159,6 +161,12 @@ def main():
 
         wb.SaveAs(output_file)
         print(f"\nГотово! Результат в: output/{os.path.basename(output_file)}")
+
+        end_time = time.time()
+        duration = end_time - start_time
+        minutes = int(duration // 60)
+        seconds = int(duration % 60)
+        print(f"Общее время выполнения: {minutes} мин. {seconds} сек.")
 
     except Exception as e:
         print(f"\n[ОШИБКА]: {e}")
