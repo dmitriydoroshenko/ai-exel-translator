@@ -111,7 +111,8 @@ def main():
         total_sheets = wb.Sheets.Count
 
         for index, sheet in enumerate(wb.Sheets, 1):
-            print(f"Лист [{index}/{total_sheets}]: {sheet.Name} — Сбор данных...")
+            sys.stdout.write(f"Лист [{index}/{total_sheets}]: {sheet.Name} —> Сбор данных...")
+            sys.stdout.flush()
             used_range = sheet.UsedRange
             cell_mapping = []  
             unique_texts_to_translate = set() 
@@ -150,7 +151,9 @@ def main():
                     for batch_id, trans_text in res.items():
                         orig_text = batch[batch_id]
                         translations_cache[orig_text] = trans_text
-                sys.stdout.write(" ✅\n")
+
+            sys.stdout.write(f" -> Применяю перевод...")
+            sys.stdout.flush()
 
             for identifier, original_text in cell_mapping:
                 translated_text = translations_cache.get(original_text, original_text)
@@ -171,6 +174,9 @@ def main():
                     try: cell_range.Font.Name = "Microsoft YaHei"
                     except: pass
 
+            sys.stdout.write(" ✅\n")
+            sys.stdout.flush()
+
         wb.SaveAs(output_file)
 
         end_time = time.time()
@@ -180,7 +186,7 @@ def main():
 
         print(f"\nГотово! Результат в: output/{os.path.basename(output_file)}")
         print(f"Токены: {total_out + total_in} | Стоимость: ${total_cost:.4f}")
-        print(f"Общее время: {int(duration // 60)} мин. {int(duration % 60)} сек.")
+        print(f"Общее время: {int(duration // 60)} мин. {int(duration % 60)} сек.\n")
         
 
     except Exception as e:
