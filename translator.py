@@ -42,8 +42,16 @@ def translate_batch(batch_dict):
             response_format={"type": "json_object"},
             timeout=30
         )
-        result = json.loads(response.choices[0].message.content)
+
+        content = response.choices[0].message.content
+        
+        if content is None:
+            print("\n[ОШИБКА]: API вернул пустой ответ (None).")
+            return None
+            
+        result = json.loads(content)
         return result if result else {}
+
     except Exception as e:
         print(f"\n[КРИТИЧЕСКАЯ ОШИБКА API]: {e}")
         return None
