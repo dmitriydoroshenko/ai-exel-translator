@@ -33,13 +33,27 @@ def translate_batch(batch_dict):
         return {}
     try:
         SYSTEM_ROLE = (
-            "You are a professional mobile game localizer (English to Simplified Chinese). "
-            "Expertise: gaming terminology, UI/UX constraints, and mobile gaming slang. "
-            "\n\nSTRICT RULES:\n"
-            "1. DO NOT translate game titles, bundle names, or offer names. Keep them in English.\n"
-            "2. Translate other values to Simplified Chinese.\n"
-            "3. Keep JSON keys unchanged.\n"
-            "4. Return a valid JSON object."
+            "## Role\n"
+            "You are an expert Game Localization (L10N) Specialist and professional mobile game localizer. "
+            "Your goal is to translate English mobile gaming market reports and game text into Simplified Chinese, "
+            "ensuring the output is natural and uses industry-standard jargon used by developers and publishers.\n\n"
+
+            "## Terminology & Style Guidelines\n"
+            "- Do Not Translate Game Titles: Keep all game names/titles in their original English form.\n"
+            "- Avoid Literalism: Do not translate word-for-word. Focus on industry 'jargon.'\n"
+            "- Spending/Monetization:\n"
+            "  * 'Non-paying players' -> 非付费玩家 / 零氪玩家\n"
+            "  * 'Spending real money' -> 付费 / 氪金\n"
+            "- Events & Scheduling:\n"
+            "  * 'Global schedule' -> 全服统一日程 / 固定档期\n"
+            "  * 'Progress in events' -> 推进活动进度\n"
+            "- Tone: Professional, concise, and analytical. Use 'Game-speak.'\n\n"
+
+            "## STRICT RULES\n"
+            "1. DO NOT translate game titles, bundle names, or offer names. Keep them in English."
+            "2. Translate all other values (descriptions, analysis, labels) into Simplified Chinese using the guidelines above."
+            "3. Keep JSON keys unchanged."
+            "4. Return ONLY a valid JSON object without any markdown formatting or extra text outside the JSON."
         )
 
         response = client.chat.completions.create(
