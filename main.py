@@ -143,13 +143,29 @@ def main():
                                 unique_texts_to_translate.add(text)
 
             for chart_obj in sheet.ChartObjects():
-                if chart_obj.Chart.HasTitle:
-                    title = chart_obj.Chart.ChartTitle.Text
-                    if title and len(title.strip()) > 1:
-                        text = title.strip()
-                        cell_mapping.append((f"CHART:{chart_obj.Name}", text))
-                        if text not in translations_cache:
-                            unique_texts_to_translate.add(text)
+                chart = chart_obj.Chart
+                if chart.HasTitle:
+                    text = chart.ChartTitle.Text.strip()
+                    cell_mapping.append((f"CHART_TITLE:{chart_obj.Name}", text))
+                    if text not in translations_cache: unique_texts_to_translate.add(text)
+                
+                for s_idx in range(1, chart.SeriesCollection().Count + 1):
+                    series = chart.SeriesCollection(s_idx)
+                    try:
+                        text = series.Name.strip()
+                        if text and not text.isdigit():
+                            cell_mapping.append((f"CHART_SERIES:{chart_obj.Name}:{s_idx}", text))
+                            if text not in translations_cache: unique_texts_to_translate.add(text)
+                    except: pass
+
+                for ax_type in [1, 2]:
+                    try:
+                        axis = chart.Axes(ax_type)
+                        if axis.HasTitle:
+                            text = axis.AxisTitle.Text.strip()
+                            cell_mapping.append((f"CHART_AXIS:{chart_obj.Name}:{ax_type}", text))
+                            if text not in translations_cache: unique_texts_to_translate.add(text)
+                    except: pass
 
             if unique_texts_to_translate:
                 unique_list = list(unique_texts_to_translate)
@@ -172,16 +188,25 @@ def main():
             for identifier, original_text in cell_mapping:
                 translated_text = translations_cache.get(original_text, original_text)
                 
-                if identifier.startswith("CHART:"):
-                    c_name = identifier.replace("CHART:", "")
+                if identifier.startswith("CHART_TITLE:"):
+                    c_name = identifier.replace("CHART_TITLE:", "")
                     chart = sheet.ChartObjects(c_name).Chart
                     chart.ChartTitle.Text = translated_text
-                    try:
-                        chart.ChartTitle.Font.Name = "Microsoft YaHei"
-                        for axis in chart.Axes():
-                            try: axis.TickLabels.Font.Name = "Microsoft YaHei"
-                            except: pass
+                    try: chart.ChartTitle.Font.Name = "Microsoft YaHei"
                     except: pass
+                
+                elif identifier.startswith("CHART_SERIES:"):
+                    parts = identifier.split(":")
+                    series = sheet.ChartObjects(parts[1]).Chart.SeriesCollection(int(parts[2]))
+                    series.Name = translated_text
+                
+                elif identifier.startswith("CHART_AXIS:"):
+                    parts = identifier.split(":")
+                    axis = sheet.ChartObjects(parts[1]).Chart.Axes(int(parts[2]))
+                    axis.AxisTitle.Text = translated_text
+                    try: axis.AxisTitle.Font.Name = "Microsoft YaHei"
+                    except: pass
+                
                 else:
                     cell_range = sheet.Range(identifier)
                     cell_range.Value = translated_text
