@@ -87,12 +87,12 @@ def main():
         wb = excel.Workbooks.Open(input_file)
         
         print("Перевод названий листов...")
-        sheet_names = {s.Name: s.Name for s in wb.Sheets}
-        translated_names = translate_batch(sheet_names)
-        if translated_names:
-            for sheet in wb.Sheets:
-                if sheet.Name in translated_names:
-                    sheet.Name = translated_names[sheet.Name][:31]
+        sheet_batch = {f"sh_{i}": sheet.Name for i, sheet in enumerate(wb.Sheets)}
+        translated_sheet_data = translate_batch(sheet_batch)
+        
+        if translated_sheet_data:
+            for i, sheet in enumerate(wb.Sheets):
+                sheet.Name = translated_sheet_data.get(f"sh_{i}", sheet.Name)
 
         total_sheets = wb.Sheets.Count
 
