@@ -10,8 +10,8 @@ from openai import OpenAI
 load_dotenv()
 
 # Цены за 1 млн токенов
-PRICE_IN = 2.50 
-PRICE_OUT = 10.00
+PRICE_IN = 1.75
+PRICE_OUT = 14.00
 
 if sys.stdout.encoding != 'utf-8':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
