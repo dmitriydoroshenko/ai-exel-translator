@@ -6,6 +6,7 @@ import io
 import time
 from dotenv import load_dotenv
 from openai import OpenAI
+from wakepy import keep
 
 load_dotenv()
 
@@ -236,7 +237,8 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        with keep.running():
+            main()
     except KeyboardInterrupt:
         print("\n\n[STOP] Программа остановлена. Очистка ресурсов...")
         try:
