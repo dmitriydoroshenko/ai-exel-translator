@@ -11,8 +11,8 @@ if sys.stdout.encoding != 'utf-8':
 
 try:
     translator = Translator()
-except Exception:
-    print("Ошибка: API ключ не найден в переменных окружения (.env)")
+except Exception as e:
+    print(str(e))
     sys.exit()
 
 def main():
@@ -102,10 +102,6 @@ def main():
                 sys.stdout.flush()
 
                 translations_map = translator.translate_texts(unique_list)
-                if translations_map is None:
-                    wb.Close(False)
-                    excel.Quit()
-                    sys.exit()
             else:
                 translations_map = {}
 

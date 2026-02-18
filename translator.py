@@ -55,7 +55,7 @@ class Translator:
     ) -> None:
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
-            raise RuntimeError("API key not found in environment (OPENAI_API_KEY)")
+            raise RuntimeError("OPENAI_API_KEY не найден в .env")
 
         self.client = OpenAI(api_key=self.api_key)
         self.model = model
@@ -69,13 +69,9 @@ class Translator:
 
         self.cache: Dict[str, str] = {}
 
-    def translate_batch(self, batch_dict: Dict[str, str]) -> Optional[Dict[str, str]]:
+    def translate_batch(self, batch_dict: Dict[str, str]) -> Dict[str, str]:
         """Отправляет пачку {id: text} на перевод в OpenAI.
-
-        Возвращает:
-        - dict с теми же ключами и переведёнными значениями
-        - {} если batch_dict пустой
-        - None при критической ошибке API
+           Возвращает словарь с теми же ключами и переведёнными значениями
         """
         if not batch_dict:
             return {}
@@ -98,35 +94,36 @@ class Translator:
 
             content = response.choices[0].message.content
             if content is None:
-                print("\n[ОШИБКА]: API вернул пустой ответ (None).")
-                return None
+                raise RuntimeError("RESPONSE_ERROR: API вернул пустой ответ (None).")
 
-            result = json.loads(content)
+            try:
+                result = json.loads(content)
+            except json.JSONDecodeError as e:
+                raise RuntimeError(f"Чат вернул невалидный JSON: {e}. ") from e
+
+            if not isinstance(result, dict):
+                raise RuntimeError(f"Ожидался JSON object (dict), получено: {type(result).__name__}")
+
             return result if result else {}
 
         except Exception as e:
-            print(f"\n[КРИТИЧЕСКАЯ ОШИБКА API]: {e}")
-            return None
+            raise RuntimeError(f"API_ERROR: {e}") from e
 
-    def ensure_translated(self, texts: Iterable[str]) -> bool:
-        """Переводит все строки, которых ещё нет в кеше, используя батчинг.
+    def ensure_translated(self, texts: Iterable[str]) -> None:
+        """Переводит все строки, которых ещё нет в кеше, используя батчинг"""
 
-        Возвращает True при успехе и False, если API упал (translate_batch вернул None).
-        """
         unique: List[str] = []
         for t in texts:
             if t and t not in self.cache:
                 unique.append(t)
 
         if not unique:
-            return True
+            return
 
         for i in range(0, len(unique), self.batch_size):
             chunk = unique[i : i + self.batch_size]
             batch = {f"id_{j}": text for j, text in enumerate(chunk)}
             res = self.translate_batch(batch)
-            if res is None:
-                return False
 
             for batch_id, trans_text in res.items():
                 orig_text = batch.get(batch_id)
@@ -134,37 +131,28 @@ class Translator:
                     continue
                 self.cache[orig_text] = trans_text
 
-        return True
+        return
 
-    def translate_text(self, text: str) -> Optional[str]:
-        """Перевод одной строки с использованием кеша.
+    def translate_text(self, text: str) -> str:
+        """Перевод одной строки с использованием кеша"""
 
-        Возвращает None при ошибке API.
-        """
         if text in self.cache:
             return self.cache[text]
-        ok = self.ensure_translated([text])
-        if not ok:
-            return None
-        return self.cache.get(text)
+        self.ensure_translated([text])
+        translated = self.cache.get(text)
+        if translated is None:
+            raise RuntimeError("Перевод отсутствует в кеше после запроса")
+        return translated
 
-    def translate_texts(self, texts: Iterable[str]) -> Optional[Dict[str, str]]:
-        """Переводит набор строк и возвращает мапу {оригинал: перевод}.
+    def translate_texts(self, texts: Iterable[str]) -> Dict[str, str]:
+        """Переводит набор строк и возвращает словарь {оригинал: перевод}"""
 
-        Внутри использует кеш и батчинг: уже переведённые строки повторно в API не отправляются.
-
-        Возвращает:
-        - dict (для каждой входной строки, где есть перевод в кеше)
-        - None при ошибке API
-        """
         unique: Set[str] = set()
         for t in texts:
             if t:
                 unique.add(t)
 
-        ok = self.ensure_translated(unique)
-        if not ok:
-            return None
+        self.ensure_translated(unique)
 
         return {t: self.cache.get(t, t) for t in unique}
 
