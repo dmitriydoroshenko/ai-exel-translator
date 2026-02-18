@@ -40,19 +40,19 @@ def main():
 
     try:
         with ExcelApp() as exel_app:
-            with exel_app.open_workbook(input_file) as wb:
+            with exel_app.open_workbook(input_file) as workbook:
         
                 print("Перевод названий листов...")
-                sheet_batch = {f"sh_{i}": sheet.Name for i, sheet in enumerate(wb.Sheets)}
+                sheet_batch = {f"sh_{i}": sheet.Name for i, sheet in enumerate(workbook.Sheets)}
                 translated_sheet_data = translator.translate_batch(sheet_batch)
                 
                 if translated_sheet_data:
-                    for i, sheet in enumerate(wb.Sheets):
+                    for i, sheet in enumerate(workbook.Sheets):
                         sheet.Name = translated_sheet_data.get(f"sh_{i}", sheet.Name)
 
-                total_sheets = wb.Sheets.Count
+                total_sheets = workbook.Sheets.Count
 
-                for index, sheet in enumerate(wb.Sheets, 1):
+                for index, sheet in enumerate(workbook.Sheets, 1):
                     sys.stdout.write(f"Лист [{index}/{total_sheets}]: {sheet.Name} —> Сбор данных...")
                     sys.stdout.flush()
                     used_range = sheet.UsedRange
@@ -137,7 +137,7 @@ def main():
                     sys.stdout.write(" ✅\n")
                     sys.stdout.flush()
 
-                wb.SaveAs(output_file)
+                workbook.SaveAs(output_file)
 
                 end_time = time.time()
                 duration = end_time - start_time
