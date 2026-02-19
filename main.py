@@ -52,7 +52,7 @@ def main(input_file, api_key: str):
         with ExcelApp() as exel_app:
             with exel_app.open_workbook(input_file) as workbook:
         
-                print("Перевод названий листов...")
+                print("⏳ Перевод названий листов...")
                 sheet_batch = {f"sh_{i}": sheet.Name for i, sheet in enumerate(workbook.Sheets)}
                 translated_sheet_data = translator.translate_batch(sheet_batch)
                 
@@ -63,7 +63,7 @@ def main(input_file, api_key: str):
                 total_sheets = workbook.Sheets.Count
 
                 for index, sheet in enumerate(workbook.Sheets, 1):
-                    sys.stdout.write(f"Лист [{index}/{total_sheets}]: {sheet.Name} —> Сбор данных...")
+                    sys.stdout.write(f"⏳ Лист [{index}/{total_sheets}]: {sheet.Name} —> Сбор данных...")
                     sys.stdout.flush()
                     used_range = sheet.UsedRange
                     cell_mapping = []  
@@ -108,7 +108,7 @@ def main(input_file, api_key: str):
 
                     if unique_texts_to_translate:
                         unique_list = list(unique_texts_to_translate)
-                        sys.stdout.write(f" -> Перевод {len(unique_list)} новых строк...")
+                        sys.stdout.write(f" -> Перевод {len(unique_list)} строк...")
                         sys.stdout.flush()
 
                         translations_map = translator.translate_texts(unique_list)
@@ -149,7 +149,7 @@ def main(input_file, api_key: str):
                             try: cell_range.Font.Name = "Microsoft YaHei"
                             except: pass
 
-                    sys.stdout.write(" ✅\n")
+                    sys.stdout.write("\n")
                     sys.stdout.flush()
 
                 workbook.SaveAs(output_file)
@@ -157,7 +157,7 @@ def main(input_file, api_key: str):
                 end_time = time.time()
                 duration = end_time - start_time
 
-                print(f"\nГотово! Результат в: {output_file} ✅")
+                print(f"\n✅ Готово! Результат в: {output_file}")
                 print(f"Токены: {translator.usage.total_tokens} | Стоимость: ${translator.total_cost_usd:.4f}")
                 print(f"Общее время: {int(duration // 60)} мин. {int(duration % 60)} сек.\n")
 

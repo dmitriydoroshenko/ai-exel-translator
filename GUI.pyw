@@ -155,7 +155,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def on_choose_file(self) -> None:
         input_file, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
-            "Выберите .xlsx файл",
+            "📂 Выберите .xlsx файл",
             "",
             "Excel Files (*.xlsx)",
         )
@@ -163,7 +163,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if input_file:
             self.input_file = input_file
             self.log_view.clear()
-            self.append_log(f"Выбран файл: {input_file}\n\n")
+            self.append_log(f"✅ Выбран файл: {input_file}\n\n")
             self.start_btn.setEnabled(True)
             self.start_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
 
@@ -172,7 +172,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         if not self.input_file:
-            self.append_log("Сначала выберите .xlsx файл.\n")
+            self.append_log("⚠️ Сначала выберите .xlsx файл.\n")
             return
 
         try:
