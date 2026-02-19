@@ -32,7 +32,6 @@ class QtStream(QtCore.QObject):
     def isatty(self):
         return False
 
-
 class TranslateWorker(QtCore.QThread):
     log = QtCore.pyqtSignal(str)
     finished_ok = QtCore.pyqtSignal()
@@ -84,7 +83,6 @@ class TranslateWorker(QtCore.QThread):
                 pass
             pythoncom.CoUninitialize()
 
-
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -113,8 +111,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.log_view.setReadOnly(True)
         self.log_view.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
         layout.addWidget(self.log_view)
-
-        self.append_log("Готово к запуску. Выберите файл и нажмите 'Начать перевод'.\n")
 
     @QtCore.pyqtSlot(str)
     def append_log(self, text: str) -> None:
@@ -146,8 +142,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.append_log("Сначала выберите .xlsx файл.\n")
             return
 
-        self.log_view.clear()
-        self.append_log("Запуск перевода...\n\n")
         self.start_btn.setEnabled(False)
 
         self.worker = TranslateWorker(self.input_file, self)
@@ -170,13 +164,11 @@ class MainWindow(QtWidgets.QMainWindow):
             pass
         super().closeEvent(event)
 
-
 def main() -> None:
     app = QtWidgets.QApplication(sys.argv)
     w = MainWindow()
     w.show()
     sys.exit(app.exec_())
-
 
 if __name__ == "__main__":
     main()
