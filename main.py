@@ -19,10 +19,6 @@ def main():
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     input_folder = os.path.join(script_dir, "input")
-    output_folder = os.path.join(script_dir, "output")
-
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
     
     try:
         files = [f for f in os.listdir(input_folder) if f.endswith(".xlsx")]
@@ -36,7 +32,7 @@ def main():
 
     input_file = os.path.join(input_folder, filename)
     name_part, extension = os.path.splitext(filename)
-    output_file = os.path.join(output_folder, f"{name_part}_cn{extension}")
+    output_file = os.path.join(os.path.dirname(input_file), f"{name_part}_cn{extension}")
 
     with ExcelApp() as exel_app:
         with exel_app.open_workbook(input_file) as workbook:
@@ -141,10 +137,8 @@ def main():
                 end_time = time.time()
                 duration = end_time - start_time
 
-                total_cost = translator.total_cost_usd
-
-                print(f"\nГотово! Результат в: output/{os.path.basename(output_file)}")
-                print(f"Токены: {translator.usage.total_tokens} | Стоимость: ${total_cost:.4f}")
+                print(f"\nГотово! Результат в: {output_file}")
+                print(f"Токены: {translator.usage.total_tokens} | Стоимость: ${translator.total_cost_usd:.4f}")
                 print(f"Общее время: {int(duration // 60)} мин. {int(duration % 60)} сек.\n")
 
 if __name__ == "__main__":
