@@ -5,6 +5,7 @@ from wakepy import keep
 from PyQt6 import QtCore, QtGui, QtWidgets
 import main as translator_main
 from excel_app import cleanup_excel
+from api_key_service import init_openai_client
 
 class QtStream(QtCore.QObject):
     """Файлоподобный объект для перенаправления stdout/stderr в GUI."""
@@ -143,6 +144,19 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if not self.input_file:
             self.append_log("Сначала выберите .xlsx файл.\n")
+            return
+
+        # Проверяем наличие/валидность API-ключа до старта потока перевода.
+        # init_openai_client() при необходимости покажет диалоги ввода/ошибок
+        # и вызовет translator.set_api_key(...).
+        try:
+            ok = init_openai_client()
+        except Exception as e:
+            self.append_log(f"❌ Не удалось инициализировать OpenAI API ключ: {e}\n")
+            return
+
+        if not ok:
+            self.append_log("❌ Перевод отменён: API ключ не настроен.\n")
             return
 
         self.start_btn.setEnabled(False)

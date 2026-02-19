@@ -1,11 +1,21 @@
 import json
-import os
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Set
 from openai import OpenAI
-from dotenv import load_dotenv
 
-load_dotenv()
+_API_KEY: Optional[str] = None
+
+def set_api_key(api_key: str) -> None:
+    """Устанавливает OpenAI API key для текущего процесса."""
+    global _API_KEY
+    key = (api_key or "").strip()
+    if not key:
+        raise ValueError("API key is empty")
+    _API_KEY = key
+
+def get_api_key() -> Optional[str]:
+    """Возвращает установленный через set_api_key() ключ (если есть)."""
+    return _API_KEY
 
 DEFAULT_SYSTEM_ROLE = (
     "## Role\n"
@@ -53,9 +63,12 @@ class Translator:
         price_out_per_1m: float = 14.00,
         system_role: str = DEFAULT_SYSTEM_ROLE,
     ) -> None:
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self.api_key = api_key or get_api_key()
         if not self.api_key:
-            raise RuntimeError("OPENAI_API_KEY не найден в .env")
+            raise RuntimeError(
+                "OpenAI API key не задан. Сначала вызовите api_key_service.init_openai_client() "
+                "(GUI-диалог), либо передайте ключ в Translator(api_key=...), либо вызовите translator.set_api_key(...)."
+            )
 
         self.client = OpenAI(api_key=self.api_key)
         self.model = model
