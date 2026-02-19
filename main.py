@@ -156,13 +156,3 @@ def main(input_file=None):
         print(f"\n\033[31m❌ {e}\033[0m\n")
         cleanup_excel()
         sys.exit(1)
-
-if __name__ == "__main__":
-    try:
-        with keep.running():
-            main()
-    except KeyboardInterrupt:
-        print("\n\n[STOP] Программа остановлена. Очистка ресурсов...")
-        cleanup_excel()
-        print("Процесс Excel успешно завершен.")
-        sys.exit(0)
