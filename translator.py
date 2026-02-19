@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Dict, Iterable, List, Set
 from openai import OpenAI
 
-DEFAULT_SYSTEM_ROLE = (
+SYSTEM_ROLE_ESSENCE = (
     "## Role\n"
     "You are an expert Game Localization (L10N) Specialist and professional mobile game localizer. "
     "Your goal is to translate English mobile gaming market reports and game text into Simplified Chinese, "
@@ -20,12 +20,18 @@ DEFAULT_SYSTEM_ROLE = (
     "  * 'Progress in events' -> 推进活动进度\n"
     "- Tone: Professional, concise, and analytical. Use 'Game-speak.'\n\n"
 
-    "## STRICT RULES\n"
+    "## STRICT RULES (L10N)\n"
     "1. DO NOT translate game titles, bundle names, or offer names. Keep them in English."
     "2. Translate all other values (descriptions, analysis, labels) into Simplified Chinese using the guidelines above."
+)
+
+SYSTEM_ROLE_TECHNICAL = (
+    "\n\n## STRICT RULES (TECHNICAL)\n"
     "3. Keep JSON keys unchanged."
     "4. Return ONLY a valid JSON object without any markdown formatting or extra text outside the JSON."
 )
+
+SYSTEM_ROLE = SYSTEM_ROLE_ESSENCE + SYSTEM_ROLE_TECHNICAL
 
 @dataclass
 class UsageTotals:
@@ -47,7 +53,7 @@ class Translator:
         timeout_s: int = 30,
         price_in_per_1m: float = 1.75,
         price_out_per_1m: float = 14.00,
-        system_role: str = DEFAULT_SYSTEM_ROLE,
+        system_role: str = SYSTEM_ROLE,
     ) -> None:
         self.api_key = api_key
         self.client = OpenAI(api_key=self.api_key)
