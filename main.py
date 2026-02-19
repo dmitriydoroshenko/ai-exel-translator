@@ -37,7 +37,13 @@ def main(input_file=None):
             input_file = os.path.join(input_folder, filename)
             name_part, extension = os.path.splitext(filename)
 
-        output_file = os.path.join(os.path.dirname(input_file), f"{name_part}_cn{extension}")
+        output_dir = os.path.dirname(input_file)
+        base_output_name = f"{name_part}_cn"
+        output_file = os.path.join(output_dir, f"{base_output_name}{extension}")
+        index = 1
+        while os.path.exists(output_file):
+            output_file = os.path.join(output_dir, f"{base_output_name}_{index}{extension}")
+            index += 1
 
         with ExcelApp() as exel_app:
             with exel_app.open_workbook(input_file) as workbook:
