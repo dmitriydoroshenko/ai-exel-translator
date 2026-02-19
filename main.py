@@ -1,39 +1,12 @@
 import os
 import sys
-import io
 import time
 from wakepy import keep
 from translator import Translator
 from excel_app import ExcelApp, cleanup_excel
 
-def _ensure_utf8_std_streams() -> None:
-    """Делает stdout/stderr UTF-8, но БЕЗ падений в pythonw/GUI.
-
-    В режиме `pythonw.exe` (двойной клик по .pyw) `sys.stdout/sys.stderr` часто равны None.
-    Также в GUI мы можем подменять потоки на кастомные объекты без `.buffer`.
-    """
-
-    def _wrap(stream):
-        enc = getattr(stream, "encoding", None)
-        if not enc or str(enc).lower() == "utf-8":
-            return stream
-        buf = getattr(stream, "buffer", None)
-        if buf is None:
-            return stream
-        return io.TextIOWrapper(buf, encoding="utf-8")
-
-    try:
-        sys.stdout = _wrap(sys.stdout)
-    except Exception:
-        pass
-    try:
-        sys.stderr = _wrap(sys.stderr)
-    except Exception:
-        pass
-
 def main():
     try:
-        _ensure_utf8_std_streams()
         start_time = time.time()
 
         translator = Translator()
