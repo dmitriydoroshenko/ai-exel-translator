@@ -1,11 +1,21 @@
 import sys
 import traceback
+from pathlib import Path
 import pythoncom
 from wakepy import keep
 from PyQt6 import QtCore, QtGui, QtWidgets
 import main as translator_main
 from excel_app import cleanup_excel
 from api_key_service import get_openai_api_key
+
+
+def _load_app_icon() -> QtGui.QIcon:
+    """Загружает иконку приложения"""
+
+    icon_path = Path(__file__).resolve().parent / "app_icon.ico"
+    if icon_path.exists():
+        return QtGui.QIcon(str(icon_path))
+    return QtGui.QIcon()
 
 class QtStream(QtCore.QObject):
     """Файлоподобный объект для перенаправления stdout/stderr в GUI."""
@@ -90,6 +100,8 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
 
         self.setWindowTitle("AI Excel Translator")
+
+        self.setWindowIcon(_load_app_icon())
         self.setMinimumSize(550, 500)
         self.resize(550, 500)
 
@@ -227,6 +239,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
 def main() -> None:
     app = QtWidgets.QApplication(sys.argv)
+
+    app.setWindowIcon(_load_app_icon())
     w = MainWindow()
     w.show()
     sys.exit(app.exec())
