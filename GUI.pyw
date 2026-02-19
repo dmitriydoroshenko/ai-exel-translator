@@ -38,6 +38,10 @@ class TranslateWorker(QtCore.QThread):
     finished_ok = QtCore.pyqtSignal()
     finished_fail = QtCore.pyqtSignal(str)
 
+    def __init__(self, input_file: str, parent=None):
+        super().__init__(parent)
+        self.input_file = input_file
+
     def run(self):
         pythoncom.CoInitialize()
 
@@ -53,7 +57,7 @@ class TranslateWorker(QtCore.QThread):
             sys.stderr = err_stream
 
             with keep.running():
-                translator_main.main()
+                translator_main.main(self.input_file)
 
             self.finished_ok.emit()
 
@@ -88,12 +92,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resize(900, 600)
 
         self.worker = None
+        self.input_file = None
 
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
         layout = QtWidgets.QVBoxLayout(central)
 
         btn_row = QtWidgets.QHBoxLayout()
+        self.choose_btn = QtWidgets.QPushButton("Выбрать файл")
+        self.choose_btn.clicked.connect(self.on_choose_file)
+        btn_row.addWidget(self.choose_btn)
+
         self.start_btn = QtWidgets.QPushButton("Начать перевод")
         self.start_btn.clicked.connect(self.on_start)
         btn_row.addWidget(self.start_btn)
@@ -105,7 +114,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.log_view.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
         layout.addWidget(self.log_view)
 
-        self.append_log("Готово к запуску. Нажмите 'Начать перевод'.\n")
+        self.append_log("Готово к запуску. Выберите файл и нажмите 'Начать перевод'.\n")
 
     @QtCore.pyqtSlot(str)
     def append_log(self, text: str) -> None:
@@ -117,15 +126,31 @@ class MainWindow(QtWidgets.QMainWindow):
         self.log_view.setTextCursor(cursor)
         self.log_view.ensureCursorVisible()
 
+    def on_choose_file(self) -> None:
+        input_file, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Выберите .xlsx файл",
+            "",
+            "Excel Files (*.xlsx)",
+        )
+
+        if input_file:
+            self.input_file = input_file
+            self.append_log(f"Выбран файл: {input_file}\n")
+
     def on_start(self) -> None:
         if self.worker is not None and self.worker.isRunning():
+            return
+
+        if not self.input_file:
+            self.append_log("Сначала выберите .xlsx файл.\n")
             return
 
         self.log_view.clear()
         self.append_log("Запуск перевода...\n\n")
         self.start_btn.setEnabled(False)
 
-        self.worker = TranslateWorker(self)
+        self.worker = TranslateWorker(self.input_file, self)
         self.worker.log.connect(self.append_log)
         self.worker.finished_ok.connect(self.on_finished_ok)
         self.worker.finished_fail.connect(self.on_finished_fail)

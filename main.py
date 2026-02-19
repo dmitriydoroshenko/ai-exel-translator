@@ -5,27 +5,38 @@ from wakepy import keep
 from translator import Translator
 from excel_app import ExcelApp, cleanup_excel
 
-def main():
+def main(input_file=None):
     try:
         start_time = time.time()
 
         translator = Translator()
 
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        input_folder = os.path.join(script_dir, "input")
+        if input_file:
+            input_file = os.path.abspath(input_file)
 
-        try:
-            files = [f for f in os.listdir(input_folder) if f.endswith(".xlsx")]
-        except Exception as e:
-            raise RuntimeError(f"Ошибка при доступе к папке input: {e}") from e
+            if not os.path.isfile(input_file):
+                raise FileNotFoundError(f"Файл не найден: {input_file}")
 
-        if not files:
-            raise FileNotFoundError(f"Файлы .xlsx не найдены в папке: {input_folder}")
+            name_part, extension = os.path.splitext(os.path.basename(input_file))
+            if extension.lower() != ".xlsx":
+                raise ValueError("Поддерживаются только файлы .xlsx")
+        else:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            input_folder = os.path.join(script_dir, "input")
 
-        filename = files[0]
+            try:
+                files = [f for f in os.listdir(input_folder) if f.endswith(".xlsx")]
+            except Exception as e:
+                raise RuntimeError(f"Ошибка при доступе к папке input: {e}") from e
 
-        input_file = os.path.join(input_folder, filename)
-        name_part, extension = os.path.splitext(filename)
+            if not files:
+                raise FileNotFoundError(f"Файлы .xlsx не найдены в папке: {input_folder}")
+
+            filename = files[0]
+
+            input_file = os.path.join(input_folder, filename)
+            name_part, extension = os.path.splitext(filename)
+
         output_file = os.path.join(os.path.dirname(input_file), f"{name_part}_cn{extension}")
 
         with ExcelApp() as exel_app:
