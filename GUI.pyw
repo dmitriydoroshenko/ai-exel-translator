@@ -157,7 +157,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.start()
 
     def on_finished_ok(self) -> None:
-        self.append_log("\n\n✅ Готово.\n")
         self.start_btn.setEnabled(True)
 
     def on_finished_fail(self, detail: str) -> None:
