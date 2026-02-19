@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-from wakepy import keep
 from translator import Translator
 from excel_app import ExcelApp, cleanup_excel
 
@@ -28,7 +27,7 @@ def main(input_file, api_key: str):
         output_file = os.path.join(output_dir, f"{base_output_name}{extension}")
         index = 1
         while os.path.exists(output_file):
-            output_file = os.path.join(output_dir, f"{base_output_name}_{index}{extension}")
+            output_file = os.path.join(output_dir, f"{base_output_name} ({index}){extension}")
             index += 1
 
         with ExcelApp() as exel_app:
@@ -134,7 +133,7 @@ def main(input_file, api_key: str):
                 end_time = time.time()
                 duration = end_time - start_time
 
-                print(f"\nГотово! Результат в: {output_file}")
+                print(f"\nГотово! Результат в: {output_file} ✅")
                 print(f"Токены: {translator.usage.total_tokens} | Стоимость: ${translator.total_cost_usd:.4f}")
                 print(f"Общее время: {int(duration // 60)} мин. {int(duration % 60)} сек.\n")
 
