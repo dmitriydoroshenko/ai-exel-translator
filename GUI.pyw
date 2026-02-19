@@ -103,6 +103,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.start_btn = QtWidgets.QPushButton("Начать перевод")
         self.start_btn.clicked.connect(self.on_start)
+        self.start_btn.setEnabled(False)
         btn_row.addWidget(self.start_btn)
         btn_row.addStretch(1)
         layout.addLayout(btn_row)
@@ -134,6 +135,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.input_file = input_file
             self.log_view.clear()
             self.append_log(f"Выбран файл: {input_file}\n\n")
+            self.start_btn.setEnabled(True)
 
     def on_start(self) -> None:
         if self.worker is not None and self.worker.isRunning():
@@ -156,10 +158,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.start_btn.setEnabled(True)
         self.choose_btn.setEnabled(True)
 
+        if not self.input_file:
+            self.start_btn.setEnabled(False)
+
     def on_finished_fail(self, detail: str) -> None:
         self.append_log("\n\n❌ Ошибка:\n" + (detail or "") + "\n")
         self.start_btn.setEnabled(True)
         self.choose_btn.setEnabled(True)
+
+        if not self.input_file:
+            self.start_btn.setEnabled(False)
 
     def closeEvent(self, event):
         try:
