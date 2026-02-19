@@ -11,31 +11,17 @@ def main(input_file, api_key: str):
 
         translator = Translator(api_key)
 
-        if input_file:
-            input_file = os.path.abspath(input_file)
+        if not input_file:
+            raise ValueError("Не указан входной файл (.xlsx).")
 
-            if not os.path.isfile(input_file):
-                raise FileNotFoundError(f"Файл не найден: {input_file}")
+        input_file = os.path.abspath(input_file)
 
-            name_part, extension = os.path.splitext(os.path.basename(input_file))
-            if extension.lower() != ".xlsx":
-                raise ValueError("Поддерживаются только файлы .xlsx")
-        else:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            input_folder = os.path.join(script_dir, "input")
+        if not os.path.isfile(input_file):
+            raise FileNotFoundError(f"Файл не найден: {input_file}")
 
-            try:
-                files = [f for f in os.listdir(input_folder) if f.endswith(".xlsx")]
-            except Exception as e:
-                raise RuntimeError(f"Ошибка при доступе к папке input: {e}") from e
-
-            if not files:
-                raise FileNotFoundError(f"Файлы .xlsx не найдены в папке: {input_folder}")
-
-            filename = files[0]
-
-            input_file = os.path.join(input_folder, filename)
-            name_part, extension = os.path.splitext(filename)
+        name_part, extension = os.path.splitext(os.path.basename(input_file))
+        if extension.lower() != ".xlsx":
+            raise ValueError("Поддерживаются только файлы .xlsx")
 
         output_dir = os.path.dirname(input_file)
         base_output_name = f"{name_part}_cn"
