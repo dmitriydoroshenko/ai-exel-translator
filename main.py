@@ -1,8 +1,27 @@
 import os
 import sys
 import time
+import re
 from translator import Translator
 from excel_app import ExcelApp, cleanup_excel
+
+_HAS_LETTERS_RE = re.compile(r"[A-Za-zА-Яа-яЁё]", re.UNICODE)
+
+def _should_translate_text(text: str) -> bool:
+    """Определяет, нужно ли переводить строку.
+       Возвращает True, если текст содержит буквы
+    """
+    if text is None:
+        return False
+
+    t = str(text).strip()
+    if len(t) <= 1:
+        return False
+
+    if not _HAS_LETTERS_RE.search(t):
+        return False
+
+    return True
 
 def main(input_file, api_key: str):
     try:
@@ -54,9 +73,9 @@ def main(input_file, api_key: str):
                         for c in range(1, used_range.Columns.Count + 1):
                             cell = used_range.Cells(r, c)
                             val = cell.Value
-                            if isinstance(val, str) and len(val.strip()) > 1:
-                                if not str(cell.Formula).startswith('='):
-                                    text = val.strip()
+                            if isinstance(val, str) and not str(cell.Formula).startswith('='):
+                                text = val.strip()
+                                if _should_translate_text(text):
                                     cell_mapping.append((cell.GetAddress(), text))
                                     unique_texts_to_translate.add(text)
 
@@ -64,14 +83,15 @@ def main(input_file, api_key: str):
                         chart = chart_obj.Chart
                         if chart.HasTitle:
                             text = chart.ChartTitle.Text.strip()
-                            cell_mapping.append((f"CHART_TITLE:{chart_obj.Name}", text))
-                            unique_texts_to_translate.add(text)
+                            if _should_translate_text(text):
+                                cell_mapping.append((f"CHART_TITLE:{chart_obj.Name}", text))
+                                unique_texts_to_translate.add(text)
                         
                         for s_idx in range(1, chart.SeriesCollection().Count + 1):
                             series = chart.SeriesCollection(s_idx)
                             try:
                                 text = series.Name.strip()
-                                if text and not text.isdigit():
+                                if _should_translate_text(text):
                                     cell_mapping.append((f"CHART_SERIES:{chart_obj.Name}:{s_idx}", text))
                                     unique_texts_to_translate.add(text)
                             except: pass
@@ -81,8 +101,9 @@ def main(input_file, api_key: str):
                                 axis = chart.Axes(ax_type)
                                 if axis.HasTitle:
                                     text = axis.AxisTitle.Text.strip()
-                                    cell_mapping.append((f"CHART_AXIS:{chart_obj.Name}:{ax_type}", text))
-                                    unique_texts_to_translate.add(text)
+                                    if _should_translate_text(text):
+                                        cell_mapping.append((f"CHART_AXIS:{chart_obj.Name}:{ax_type}", text))
+                                        unique_texts_to_translate.add(text)
                             except: pass
 
                     if unique_texts_to_translate:
@@ -99,6 +120,9 @@ def main(input_file, api_key: str):
 
                     for identifier, original_text in cell_mapping:
                         translated_text = translations_map.get(original_text, original_text)
+
+                        if translated_text == original_text:
+                            continue
                         
                         if identifier.startswith("CHART_TITLE:"):
                             c_name = identifier.replace("CHART_TITLE:", "")
