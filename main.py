@@ -13,29 +13,30 @@ if sys.stderr.encoding != 'utf-8':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 def main():
-    start_time = time.time()
-
-    translator = Translator()
-
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    input_folder = os.path.join(script_dir, "input")
-    
     try:
-        files = [f for f in os.listdir(input_folder) if f.endswith(".xlsx")]
-    except Exception as e:
-        raise RuntimeError(f"Ошибка при доступе к папке input: {e}") from e
+        start_time = time.time()
 
-    if not files:
-        raise FileNotFoundError(f"Файлы .xlsx не найдены в папке: {input_folder}")
+        translator = Translator()
 
-    filename = files[0]
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        input_folder = os.path.join(script_dir, "input")
 
-    input_file = os.path.join(input_folder, filename)
-    name_part, extension = os.path.splitext(filename)
-    output_file = os.path.join(os.path.dirname(input_file), f"{name_part}_cn{extension}")
+        try:
+            files = [f for f in os.listdir(input_folder) if f.endswith(".xlsx")]
+        except Exception as e:
+            raise RuntimeError(f"Ошибка при доступе к папке input: {e}") from e
 
-    with ExcelApp() as exel_app:
-        with exel_app.open_workbook(input_file) as workbook:
+        if not files:
+            raise FileNotFoundError(f"Файлы .xlsx не найдены в папке: {input_folder}")
+
+        filename = files[0]
+
+        input_file = os.path.join(input_folder, filename)
+        name_part, extension = os.path.splitext(filename)
+        output_file = os.path.join(os.path.dirname(input_file), f"{name_part}_cn{extension}")
+
+        with ExcelApp() as exel_app:
+            with exel_app.open_workbook(input_file) as workbook:
         
                 print("Перевод названий листов...")
                 sheet_batch = {f"sh_{i}": sheet.Name for i, sheet in enumerate(workbook.Sheets)}
@@ -141,6 +142,11 @@ def main():
                 print(f"Токены: {translator.usage.total_tokens} | Стоимость: ${translator.total_cost_usd:.4f}")
                 print(f"Общее время: {int(duration // 60)} мин. {int(duration % 60)} сек.\n")
 
+    except Exception as e:
+        print(f"\n\033[31m❌ {e}\033[0m\n")
+        cleanup_excel()
+        sys.exit(1)
+
 if __name__ == "__main__":
     try:
         with keep.running():
@@ -150,7 +156,3 @@ if __name__ == "__main__":
         cleanup_excel()
         print("Процесс Excel успешно завершен.")
         sys.exit(0)
-    except Exception as e:
-        print(f"\n\033[31m❌ {e}\033[0m\n")
-        cleanup_excel()
-        sys.exit(1)
