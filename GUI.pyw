@@ -132,7 +132,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if input_file:
             self.input_file = input_file
-            self.append_log(f"Выбран файл: {input_file}\n")
+            self.append_log(f"Выбран файл: {input_file}\n\n")
 
     def on_start(self) -> None:
         if self.worker is not None and self.worker.isRunning():
