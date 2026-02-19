@@ -140,7 +140,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.start_btn.setEnabled(True)
 
     def closeEvent(self, event):
-        # Жёсткой отмены текущего main.py нет — просто попробуем подчистить Excel.
         try:
             cleanup_excel()
         except Exception:
