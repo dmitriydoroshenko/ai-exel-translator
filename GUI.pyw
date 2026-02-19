@@ -88,8 +88,10 @@ class TranslateWorker(QtCore.QThread):
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AI Excel Translator — Логи")
-        self.resize(900, 600)
+
+        self.setWindowTitle("AI Excel Translator")
+        self.setMinimumSize(550, 500)
+        self.resize(550, 500)
 
         self.worker = None
         self.input_file = None
@@ -97,23 +99,48 @@ class MainWindow(QtWidgets.QMainWindow):
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
         layout = QtWidgets.QVBoxLayout(central)
+        layout.setSpacing(15)
 
-        btn_row = QtWidgets.QHBoxLayout()
-        self.choose_btn = QtWidgets.QPushButton("Выбрать файл")
+        self.info_label = QtWidgets.QLabel("Выберите таблицу для перевода (.xlsx)")
+        self.info_label.setObjectName("InfoLabel")
+        self.info_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.info_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        layout.addWidget(self.info_label)
+
+        self.choose_btn = QtWidgets.QPushButton("📂 Выбрать файл")
+        self.choose_btn.setObjectName("ChooseBtn")
+        self.choose_btn.setMinimumHeight(45)
+        self.choose_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.choose_btn.clicked.connect(self.on_choose_file)
-        btn_row.addWidget(self.choose_btn)
-
-        self.start_btn = QtWidgets.QPushButton("Начать перевод")
-        self.start_btn.clicked.connect(self.on_start)
-        self.start_btn.setEnabled(False)
-        btn_row.addWidget(self.start_btn)
-        btn_row.addStretch(1)
-        layout.addLayout(btn_row)
+        layout.addWidget(self.choose_btn)
 
         self.log_view = QtWidgets.QPlainTextEdit()
+        self.log_view.setPlaceholderText("Лог процесса перевода появится здесь...")
         self.log_view.setReadOnly(True)
         self.log_view.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
         layout.addWidget(self.log_view)
+
+        self.start_btn = QtWidgets.QPushButton("🚀 Начать перевод")
+        self.start_btn.setObjectName("StartBtn")
+        self.start_btn.setMinimumHeight(45)
+        self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+        self.start_btn.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #2ecc71;
+                color: white;
+                padding: 12px;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 6px;
+            }
+            QPushButton:disabled { background-color: #95a5a6; }
+            QPushButton:hover { background-color: #27ae60; }
+            """
+        )
+        self.start_btn.clicked.connect(self.on_start)
+        self.start_btn.setEnabled(False)
+        layout.addWidget(self.start_btn)
 
     @QtCore.pyqtSlot(str)
     def append_log(self, text: str) -> None:
@@ -138,6 +165,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.log_view.clear()
             self.append_log(f"Выбран файл: {input_file}\n\n")
             self.start_btn.setEnabled(True)
+            self.start_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
 
     def on_start(self) -> None:
         if self.worker is not None and self.worker.isRunning():
@@ -159,6 +187,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.start_btn.setEnabled(False)
         self.choose_btn.setEnabled(False)
+        self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
         self.worker = TranslateWorker(self.input_file, api_key, self)
         self.worker.log.connect(self.append_log)
@@ -170,16 +199,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.start_btn.setEnabled(True)
         self.choose_btn.setEnabled(True)
 
+        self.choose_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.start_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
         if not self.input_file:
             self.start_btn.setEnabled(False)
+            self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
     def on_finished_fail(self, detail: str) -> None:
         self.append_log("\n\n❌ Ошибка:\n" + (detail or "") + "\n")
         self.start_btn.setEnabled(True)
         self.choose_btn.setEnabled(True)
 
+        self.choose_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.start_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
         if not self.input_file:
             self.start_btn.setEnabled(False)
+            self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
     def closeEvent(self, event):
         try:
