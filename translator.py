@@ -1,21 +1,7 @@
 import json
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict, Iterable, List, Set
 from openai import OpenAI
-
-_API_KEY: Optional[str] = None
-
-def set_api_key(api_key: str) -> None:
-    """Устанавливает OpenAI API key для текущего процесса."""
-    global _API_KEY
-    key = (api_key or "").strip()
-    if not key:
-        raise ValueError("API key is empty")
-    _API_KEY = key
-
-def get_api_key() -> Optional[str]:
-    """Возвращает установленный через set_api_key() ключ (если есть)."""
-    return _API_KEY
 
 DEFAULT_SYSTEM_ROLE = (
     "## Role\n"
@@ -55,7 +41,7 @@ class Translator:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str,
         model: str = "gpt-5.2",
         batch_size: int = 30,
         timeout_s: int = 30,
@@ -63,13 +49,7 @@ class Translator:
         price_out_per_1m: float = 14.00,
         system_role: str = DEFAULT_SYSTEM_ROLE,
     ) -> None:
-        self.api_key = api_key or get_api_key()
-        if not self.api_key:
-            raise RuntimeError(
-                "OpenAI API key не задан. Сначала вызовите api_key_service.init_openai_client() "
-                "(GUI-диалог), либо передайте ключ в Translator(api_key=...), либо вызовите translator.set_api_key(...)."
-            )
-
+        self.api_key = api_key
         self.client = OpenAI(api_key=self.api_key)
         self.model = model
         self.batch_size = batch_size

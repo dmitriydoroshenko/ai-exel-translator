@@ -2,7 +2,6 @@ from typing import Optional, Tuple
 from PyQt6.QtCore import QSettings, Qt
 from PyQt6.QtWidgets import QApplication, QInputDialog, QLineEdit, QMessageBox
 from openai import OpenAI
-from translator import set_api_key
 
 SETTINGS_ORG = "AI_Tools"
 SETTINGS_APP = "PPT_Translator"
@@ -111,13 +110,3 @@ def ensure_openai_api_key() -> Optional[str]:
             continue
 
         return None
-
-
-def init_openai_client() -> bool:
-    """Инициализирует OpenAI-клиент в translator"""
-    api_key = ensure_openai_api_key()
-    if not api_key:
-        return False
-
-    set_api_key(api_key)
-    return True

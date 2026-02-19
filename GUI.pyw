@@ -5,7 +5,7 @@ from wakepy import keep
 from PyQt6 import QtCore, QtGui, QtWidgets
 import main as translator_main
 from excel_app import cleanup_excel
-from api_key_service import init_openai_client
+from api_key_service import ensure_openai_api_key
 
 class QtStream(QtCore.QObject):
     """Файлоподобный объект для перенаправления stdout/stderr в GUI."""
@@ -38,9 +38,10 @@ class TranslateWorker(QtCore.QThread):
     finished_ok = QtCore.pyqtSignal()
     finished_fail = QtCore.pyqtSignal(str)
 
-    def __init__(self, input_file: str, parent=None):
+    def __init__(self, input_file: str, api_key: str, parent=None):
         super().__init__(parent)
         self.input_file = input_file
+        self.api_key = api_key
 
     def run(self):
         pythoncom.CoInitialize()
@@ -57,7 +58,7 @@ class TranslateWorker(QtCore.QThread):
             sys.stderr = err_stream
 
             with keep.running():
-                translator_main.main(self.input_file)
+                translator_main.main(self.input_file, self.api_key)
 
             self.finished_ok.emit()
 
@@ -146,23 +147,20 @@ class MainWindow(QtWidgets.QMainWindow):
             self.append_log("Сначала выберите .xlsx файл.\n")
             return
 
-        # Проверяем наличие/валидность API-ключа до старта потока перевода.
-        # init_openai_client() при необходимости покажет диалоги ввода/ошибок
-        # и вызовет translator.set_api_key(...).
         try:
-            ok = init_openai_client()
+            api_key = ensure_openai_api_key()
         except Exception as e:
-            self.append_log(f"❌ Не удалось инициализировать OpenAI API ключ: {e}\n")
+            self.append_log(f"❌ Не удалось получить OpenAI API ключ: {e}\n")
             return
 
-        if not ok:
+        if not api_key:
             self.append_log("❌ Перевод отменён: API ключ не настроен.\n")
             return
 
         self.start_btn.setEnabled(False)
         self.choose_btn.setEnabled(False)
 
-        self.worker = TranslateWorker(self.input_file, self)
+        self.worker = TranslateWorker(self.input_file, api_key, self)
         self.worker.log.connect(self.append_log)
         self.worker.finished_ok.connect(self.on_finished_ok)
         self.worker.finished_fail.connect(self.on_finished_fail)

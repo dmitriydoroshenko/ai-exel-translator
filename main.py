@@ -5,11 +5,11 @@ from wakepy import keep
 from translator import Translator
 from excel_app import ExcelApp, cleanup_excel
 
-def main(input_file=None):
+def main(input_file, api_key: str):
     try:
         start_time = time.time()
 
-        translator = Translator()
+        translator = Translator(api_key)
 
         if input_file:
             input_file = os.path.abspath(input_file)
