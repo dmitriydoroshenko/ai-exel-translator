@@ -144,6 +144,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         self.start_btn.setEnabled(False)
+        self.choose_btn.setEnabled(False)
 
         self.worker = TranslateWorker(self.input_file, self)
         self.worker.log.connect(self.append_log)
@@ -153,10 +154,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def on_finished_ok(self) -> None:
         self.start_btn.setEnabled(True)
+        self.choose_btn.setEnabled(True)
 
     def on_finished_fail(self, detail: str) -> None:
         self.append_log("\n\n❌ Ошибка:\n" + (detail or "") + "\n")
         self.start_btn.setEnabled(True)
+        self.choose_btn.setEnabled(True)
 
     def closeEvent(self, event):
         try:
