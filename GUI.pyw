@@ -5,7 +5,7 @@ from wakepy import keep
 from PyQt6 import QtCore, QtGui, QtWidgets
 import main as translator_main
 from excel_app import cleanup_excel
-from api_key_service import ensure_openai_api_key
+from api_key_service import get_openai_api_key
 
 class QtStream(QtCore.QObject):
     """Файлоподобный объект для перенаправления stdout/stderr в GUI."""
@@ -148,7 +148,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         try:
-            api_key = ensure_openai_api_key()
+            api_key = get_openai_api_key()
         except Exception as e:
             self.append_log(f"❌ Не удалось получить OpenAI API ключ: {e}\n")
             return

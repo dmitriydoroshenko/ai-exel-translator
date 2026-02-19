@@ -38,7 +38,7 @@ def validate_api_key(api_key: str) -> Tuple[bool, str]:
 
         return False, msg_label
 
-def ensure_openai_api_key() -> Optional[str]:
+def get_openai_api_key() -> Optional[str]:
     """Возвращает валидный OpenAI API Key.
 
     Returns:
