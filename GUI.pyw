@@ -2,7 +2,7 @@ import sys
 import traceback
 import pythoncom
 from wakepy import keep
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 import main as translator_main
 from excel_app import cleanup_excel
 
@@ -109,7 +109,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.log_view = QtWidgets.QPlainTextEdit()
         self.log_view.setReadOnly(True)
-        self.log_view.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
+        self.log_view.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
         layout.addWidget(self.log_view)
 
     @QtCore.pyqtSlot(str)
@@ -117,7 +117,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not text:
             return
         cursor = self.log_view.textCursor()
-        cursor.movePosition(cursor.End)
+        cursor.movePosition(QtGui.QTextCursor.MoveOperation.End)
         cursor.insertText(text)
         self.log_view.setTextCursor(cursor)
         self.log_view.ensureCursorVisible()
@@ -168,7 +168,7 @@ def main() -> None:
     app = QtWidgets.QApplication(sys.argv)
     w = MainWindow()
     w.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 if __name__ == "__main__":
     main()
