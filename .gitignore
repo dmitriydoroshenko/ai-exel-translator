@@ -9,3 +9,10 @@
 __pycache__/
 venv/
 .vscode/
+
+# PyInstaller build artifacts
+build/
+dist/
+
+# PyInstaller misc
+*.spec.bak

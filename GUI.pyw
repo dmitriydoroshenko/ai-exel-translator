@@ -12,9 +12,21 @@ from api_key_service import get_openai_api_key
 def _load_app_icon() -> QtGui.QIcon:
     """Загружает иконку приложения"""
 
-    icon_path = Path(__file__).resolve().parent / "app_icon.ico"
-    if icon_path.exists():
-        return QtGui.QIcon(str(icon_path))
+    candidates: list[Path] = []
+
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(Path(meipass))
+
+    candidates.append(Path(__file__).resolve().parent)
+
+    for base_dir in list(candidates):
+        candidates.append(base_dir / "_internal")
+
+    for base_dir in candidates:
+        icon_path = base_dir / "app_icon.ico"
+        if icon_path.exists():
+            return QtGui.QIcon(str(icon_path))
     return QtGui.QIcon()
 
 class QtStream(QtCore.QObject):
