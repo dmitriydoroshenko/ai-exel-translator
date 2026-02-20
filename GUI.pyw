@@ -296,7 +296,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
     def on_finished_cancelled(self) -> None:
-        self.append_log("\n⛔ Перевод отменён. Результат не сохранён.\n")
+        self.append_log("⛔ Перевод отменён. Результат не сохранён.\n\n")
 
         self.action_stack.setCurrentWidget(self.start_btn)
         self.start_btn.setEnabled(True)
