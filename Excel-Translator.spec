@@ -5,9 +5,6 @@ a = Analysis(
     ['GUI.pyw'],
     pathex=[],
     binaries=[],
-    # Нужен как runtime-ресурс для `QMainWindow.setWindowIcon(...)`.
-    # Параметр `icon=...` ниже задаёт иконку EXE, но не гарантирует наличие
-    # файла внутри dist/onefile-бандла.
     datas=[('app_icon.ico', '.')],
     hiddenimports=[],
     hookspath=[],
