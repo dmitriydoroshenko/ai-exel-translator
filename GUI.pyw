@@ -7,7 +7,6 @@ import pythoncom
 from wakepy import keep
 from PyQt6 import QtCore, QtGui, QtWidgets
 import main as translator_main
-from excel_app import ExcelApp
 from api_key_service import get_openai_api_key
 
 

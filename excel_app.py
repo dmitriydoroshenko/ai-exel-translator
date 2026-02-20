@@ -23,7 +23,7 @@ class ExcelApp:
             raise RuntimeError("ExcelApp не запущен")
         return WorkbookSession(self.excel, path)
 
-    def __exit__(self, exc_type, exc, tb):
+    def __exit__(self, _exc_type, _exc, _tb):
         if self.excel is not None:
             try:
                 self.excel.Quit()
@@ -48,7 +48,7 @@ class WorkbookSession:
         self.wb = self.excel.Workbooks.Open(self.path)
         return self.wb
 
-    def __exit__(self, exc_type, exc, tb):
+    def __exit__(self, _exc_type, _exc, _tb):
         if self.wb is not None:
             try:
                 self.wb.Close(SaveChanges=False)

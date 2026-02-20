@@ -153,17 +153,6 @@ class Translator:
 
         return
 
-    def translate_text(self, text: str) -> str:
-        """Перевод одной строки с использованием кеша"""
-
-        if text in self.cache:
-            return self.cache[text]
-        self.ensure_translated([text])
-        translated = self.cache.get(text)
-        if translated is None:
-            raise RuntimeError("Перевод отсутствует в кеше после запроса")
-        return translated
-
     def translate_texts(self, texts: Iterable[str]) -> Dict[str, str]:
         """Переводит набор строк и возвращает словарь {оригинал: перевод}"""
 
