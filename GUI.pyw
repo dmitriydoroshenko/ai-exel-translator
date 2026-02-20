@@ -7,7 +7,7 @@ import pythoncom
 from wakepy import keep
 from PyQt6 import QtCore, QtGui, QtWidgets
 import main as translator_main
-from excel_app import cleanup_excel
+from excel_app import ExcelApp
 from api_key_service import get_openai_api_key
 
 
@@ -102,19 +102,11 @@ class TranslateWorker(QtCore.QThread):
             self.finished_cancelled.emit()
 
         except Exception as e:
-            try:
-                cleanup_excel()
-            except Exception:
-                pass
             detail = "".join(traceback.format_exception(type(e), e, e.__traceback__))
             self.finished_fail.emit(detail)
 
         finally:
             sys.stdout, sys.stderr = old_out, old_err
-            try:
-                cleanup_excel()
-            except Exception:
-                pass
             pythoncom.CoUninitialize()
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -332,11 +324,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.on_cancel()
             event.ignore()
             return
-
-        try:
-            cleanup_excel()
-        except Exception:
-            pass
 
         super().closeEvent(event)
 

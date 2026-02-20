@@ -5,7 +5,7 @@ import re
 import threading
 from concurrent.futures import CancelledError
 from translator import Translator
-from excel_app import ExcelApp, cleanup_excel
+from excel_app import ExcelApp
 
 _HAS_LETTERS_RE = re.compile(r"[A-Za-zА-Яа-яЁё]", re.UNICODE)
 
@@ -189,5 +189,4 @@ def main(input_file, api_key: str, cancel_event: threading.Event | None = None):
 
     except Exception as e:
         print(f"\n\033[31m❌ {e}\033[0m\n")
-        cleanup_excel()
         sys.exit(1)

@@ -55,13 +55,3 @@ class WorkbookSession:
             except Exception:
                 pass
             self.wb = None
-
-
-def cleanup_excel():
-    """На случай Ctrl+C: пытается закрыть активный Excel.Application, если он остался висеть."""
-
-    try:
-        excel_app = win32.GetActiveObject("Excel.Application")
-        excel_app.Quit()
-    except Exception:
-        pass
