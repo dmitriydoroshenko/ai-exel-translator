@@ -131,6 +131,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.input_file = None
         self.cancel_event: threading.Event | None = None
 
+        self._close_requested = False
+        self._force_close = False
+
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
         layout = QtWidgets.QVBoxLayout(central)
@@ -280,6 +283,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.start_btn.setEnabled(False)
             self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
+        if self._close_requested:
+            self._force_close = True
+            QtCore.QTimer.singleShot(0, self.close)
+
     def on_finished_fail(self, detail: str) -> None:
         self.append_log("\n\n❌ Ошибка:\n" + (detail or "") + "\n")
         self.action_stack.setCurrentWidget(self.start_btn)
@@ -294,6 +301,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.input_file:
             self.start_btn.setEnabled(False)
             self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+
+        if self._close_requested:
+            self._force_close = True
+            QtCore.QTimer.singleShot(0, self.close)
 
     def on_finished_cancelled(self) -> None:
         self.append_log("⛔ Перевод отменён. Результат не сохранён.\n\n")
@@ -311,11 +322,22 @@ class MainWindow(QtWidgets.QMainWindow):
             self.start_btn.setEnabled(False)
             self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
+        if self._close_requested:
+            self._force_close = True
+            QtCore.QTimer.singleShot(0, self.close)
+
     def closeEvent(self, event):
+        if not self._force_close and self.worker is not None and self.worker.isRunning():
+            self._close_requested = True
+            self.on_cancel()
+            event.ignore()
+            return
+
         try:
             cleanup_excel()
         except Exception:
             pass
+
         super().closeEvent(event)
 
 def main() -> None:
