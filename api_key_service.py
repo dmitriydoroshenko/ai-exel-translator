@@ -78,31 +78,30 @@ def get_openai_api_key() -> Optional[str]:
 
     parent = QApplication.activeWindow()
 
-    while True:
-        if api_key:
-            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            QApplication.processEvents()
-            try:
-                validation = validate_api_key(api_key)
-            finally:
-                QApplication.restoreOverrideCursor()
+    while api_key:
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        QApplication.processEvents()
+        try:
+            validation = validate_api_key(api_key)
+        finally:
+            QApplication.restoreOverrideCursor()
 
-            if validation.is_valid:
-                return api_key
+        if validation.is_valid:
+            return api_key
 
-            if validation.is_network_error:
-                if not show_no_internet_message(parent, validation.error_msg):
-                    return None
+        if validation.is_network_error:
+            if show_no_internet_message(parent, validation.error_msg):
                 continue
+            return None
 
-            QMessageBox.warning(
-                parent,
-                "Ошибка API ключа",
-                f"Сохраненный ключ невалиден, введите новый ключ\n\nОшибка:\n{validation.error_msg}",
-            )
-            api_key = ""
-            continue
+        QMessageBox.warning(
+            parent,
+            "Ошибка API ключа",
+            f"Сохраненный ключ невалиден, введите новый ключ\n\nОшибка:\n{validation.error_msg}",
+        )
+        break
 
+    while True:
         key, ok = QInputDialog.getText(
             parent,
             "Настройка API",
@@ -110,42 +109,37 @@ def get_openai_api_key() -> Optional[str]:
             QLineEdit.EchoMode.Password,
             "",
         )
-        key = (key or "").strip()
+        if not ok:
+            return None
 
-        if ok and not key:
+        key = (key or "").strip()
+        if not key:
             QMessageBox.warning(
                 parent,
                 "Пустой ключ",
                 "Поле API ключа пустое. Пожалуйста, введите ключ или нажмите Cancel для выхода.",
             )
-            api_key = ""
             continue
 
-        if ok and key:
-            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            QApplication.processEvents()
-            try:
-                validation = validate_api_key(key)
-            finally:
-                QApplication.restoreOverrideCursor()
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        QApplication.processEvents()
+        try:
+            validation = validate_api_key(key)
+        finally:
+            QApplication.restoreOverrideCursor()
 
-            if validation.is_valid:
-                settings.setValue(SETTINGS_KEY, key)
-                QMessageBox.information(parent, "Успех", "API ключ успешно проверен и сохранен!")
-                return key
+        if validation.is_valid:
+            settings.setValue(SETTINGS_KEY, key)
+            QMessageBox.information(parent, "Успех", "API ключ успешно проверен и сохранен!")
+            return key
 
-            if validation.is_network_error:
-                if not show_no_internet_message(parent, validation.error_msg):
-                    return None
-                api_key = ""
+        if validation.is_network_error:
+            if show_no_internet_message(parent, validation.error_msg):
                 continue
+            return None
 
-            QMessageBox.critical(
-                parent,
-                "Ошибка",
-                f"Ключ не прошел проверку\n\nОшибка:\n{validation.error_msg}",
-            )
-            api_key = ""
-            continue
-
-        return None
+        QMessageBox.critical(
+            parent,
+            "Ошибка",
+            f"Ключ не прошел проверку\n\nОшибка:\n{validation.error_msg}",
+        )
