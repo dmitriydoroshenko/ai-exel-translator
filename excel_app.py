@@ -13,7 +13,7 @@ class ExcelApp:
         self.excel = None
 
     def __enter__(self):
-        self.excel = win32.Dispatch("Excel.Application")
+        self.excel = win32.DispatchEx("Excel.Application")
         self.excel.Visible = self.visible
         self.excel.DisplayAlerts = self.display_alerts
         return self
