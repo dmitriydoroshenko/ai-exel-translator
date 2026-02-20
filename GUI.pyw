@@ -7,6 +7,7 @@ import pythoncom
 from wakepy import keep
 from PyQt6 import QtCore, QtGui, QtWidgets
 import main as translator_main
+from api_key_service import get_openai_api_key
 
 
 def _load_app_icon() -> QtGui.QIcon:
@@ -61,9 +62,10 @@ class TranslateWorker(QtCore.QThread):
     finished_fail = QtCore.pyqtSignal(str)
     finished_cancelled = QtCore.pyqtSignal()
 
-    def __init__(self, input_file: str, cancel_event: threading.Event, parent=None):
+    def __init__(self, input_file: str, api_key: str, cancel_event: threading.Event, parent=None):
         super().__init__(parent)
         self.input_file = input_file
+        self.api_key = api_key
         self.cancel_event = cancel_event
 
     def request_cancel(self) -> None:
@@ -84,7 +86,7 @@ class TranslateWorker(QtCore.QThread):
             sys.stderr = err_stream
 
             with keep.running():
-                translator_main.main(self.input_file, cancel_event=self.cancel_event)
+                translator_main.main(self.input_file, self.api_key, cancel_event=self.cancel_event)
 
             self.finished_ok.emit()
 
@@ -95,10 +97,7 @@ class TranslateWorker(QtCore.QThread):
             else:
                 self.finished_fail.emit(f"SystemExit: {code}")
 
-        except CancelledError as e:
-            msg = str(e or "").strip()
-            if msg:
-                self.log.emit(msg + "\n")
+        except CancelledError:
             self.finished_cancelled.emit()
 
         except Exception as e:
@@ -223,6 +222,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
             return
 
+        try:
+            api_key = get_openai_api_key()
+        except Exception as e:
+            self.append_log(f"❌ Не удалось получить OpenAI API ключ: {e}\n")
+            return
+
+        if not api_key:
+            self.append_log("❌ Перевод отменён: API ключ не настроен.\n")
+            return
+
         self.choose_btn.setEnabled(False)
 
         self.cancel_btn.setEnabled(True)
@@ -232,7 +241,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.cancel_event = threading.Event()
 
-        self.worker = TranslateWorker(self.input_file, cancel_event=self.cancel_event, parent=self)
+        self.worker = TranslateWorker(self.input_file, api_key, cancel_event=self.cancel_event, parent=self)
         self.worker.log.connect(self.append_log)
         self.worker.finished_ok.connect(self.on_finished_ok)
         self.worker.finished_fail.connect(self.on_finished_fail)

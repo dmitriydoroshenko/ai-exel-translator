@@ -28,13 +28,13 @@ def _should_translate_text(text: str) -> bool:
 
     return True
 
-def main(input_file, cancel_event: threading.Event | None = None):
+def main(input_file, api_key: str, cancel_event: threading.Event | None = None):
     try:
         start_time = time.time()
 
         _check_cancel(cancel_event)
 
-        translator = Translator(cancel_event=cancel_event)
+        translator = Translator(api_key, cancel_event=cancel_event)
 
         if not input_file:
             raise ValueError("Не указан входной файл (.xlsx).")
