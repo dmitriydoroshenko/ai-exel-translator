@@ -1,3 +1,4 @@
+from concurrent.futures import CancelledError
 from typing import Optional, Tuple
 from PyQt6.QtCore import QSettings, Qt
 from PyQt6.QtWidgets import QApplication, QInputDialog, QLineEdit, QMessageBox
@@ -110,3 +111,20 @@ def get_openai_api_key() -> Optional[str]:
             continue
 
         return None
+
+def get_openai_client() -> OpenAI:
+    """Создаёт и возвращает OpenAI client.
+
+    Raises:
+        RuntimeError: если не удалось получить ключ из-за ошибки.
+        CancelledError: если пользователь отменил ввод ключа.
+    """
+    try:
+        api_key = get_openai_api_key()
+    except Exception as e:
+        raise RuntimeError(f"Не удалось получить OpenAI API ключ: {e}") from e
+
+    if not api_key:
+        raise CancelledError("❌ Перевод отменён: API ключ не настроен.")
+
+    return OpenAI(api_key=api_key)
