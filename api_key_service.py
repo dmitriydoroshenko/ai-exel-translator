@@ -1,4 +1,3 @@
-import socket
 from typing import NamedTuple, Optional
 from PyQt6.QtCore import QSettings, Qt
 from PyQt6.QtWidgets import QApplication, QInputDialog, QLineEdit, QMessageBox
@@ -8,30 +7,13 @@ SETTINGS_ORG = "AI_Tools"
 SETTINGS_APP = "PPT_Translator"
 SETTINGS_KEY = "openai_api_key"
 
-
 class ApiKeyValidationResult(NamedTuple):
     is_valid: bool
     error_msg: str
     is_network_error: bool = False
 
-
-def can_reach_openai(timeout_s: float = 3.0) -> bool:
-    """Быстрая проверка доступа к api.openai.com (TCP 443)."""
-
-    try:
-        with socket.create_connection(("api.openai.com", 443), timeout=timeout_s):
-            return True
-    except OSError:
-        return False
-
-
 def show_no_internet_message(parent, details: str = "") -> bool:
-    """Показывает простое окно "Нет интернета" (Retry/Cancel).
-
-    Returns:
-        True: Retry
-        False: Cancel
-    """
+    """Показывает простое окно "Нет интернета" (Retry/Cancel)"""
 
     text = (
         "Нет подключения к интернету или сервис OpenAI недоступен.\n\n"
@@ -51,6 +33,7 @@ def show_no_internet_message(parent, details: str = "") -> bool:
 
 def validate_api_key(api_key: str) -> ApiKeyValidationResult:
     """Проверка ключа без списания токенов за генерацию."""
+
     try:
         test_client = OpenAI(api_key=api_key)
         test_client.models.list()
@@ -96,11 +79,6 @@ def get_openai_api_key() -> Optional[str]:
     parent = QApplication.activeWindow()
 
     while True:
-        if not can_reach_openai():
-            if not show_no_internet_message(parent):
-                return None
-            continue
-
         if api_key:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             QApplication.processEvents()
