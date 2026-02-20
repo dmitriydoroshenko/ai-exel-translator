@@ -1,6 +1,8 @@
 import sys
 import traceback
 from pathlib import Path
+import threading
+from concurrent.futures import CancelledError
 import pythoncom
 from wakepy import keep
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -59,11 +61,16 @@ class TranslateWorker(QtCore.QThread):
     log = QtCore.pyqtSignal(str)
     finished_ok = QtCore.pyqtSignal()
     finished_fail = QtCore.pyqtSignal(str)
+    finished_cancelled = QtCore.pyqtSignal()
 
-    def __init__(self, input_file: str, api_key: str, parent=None):
+    def __init__(self, input_file: str, api_key: str, cancel_event: threading.Event, parent=None):
         super().__init__(parent)
         self.input_file = input_file
         self.api_key = api_key
+        self.cancel_event = cancel_event
+
+    def request_cancel(self) -> None:
+        self.cancel_event.set()
 
     def run(self):
         pythoncom.CoInitialize()
@@ -80,7 +87,7 @@ class TranslateWorker(QtCore.QThread):
             sys.stderr = err_stream
 
             with keep.running():
-                translator_main.main(self.input_file, self.api_key)
+                translator_main.main(self.input_file, self.api_key, cancel_event=self.cancel_event)
 
             self.finished_ok.emit()
 
@@ -90,6 +97,9 @@ class TranslateWorker(QtCore.QThread):
                 self.finished_ok.emit()
             else:
                 self.finished_fail.emit(f"SystemExit: {code}")
+
+        except CancelledError:
+            self.finished_cancelled.emit()
 
         except Exception as e:
             try:
@@ -119,6 +129,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.worker = None
         self.input_file = None
+        self.cancel_event: threading.Event | None = None
 
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
@@ -144,6 +155,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.log_view.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
         layout.addWidget(self.log_view)
 
+        self.action_stack = QtWidgets.QStackedWidget()
+        layout.addWidget(self.action_stack)
+
         self.start_btn = QtWidgets.QPushButton("🚀 Начать перевод")
         self.start_btn.setObjectName("StartBtn")
         self.start_btn.setMinimumHeight(45)
@@ -164,7 +178,20 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         self.start_btn.clicked.connect(self.on_start)
         self.start_btn.setEnabled(False)
-        layout.addWidget(self.start_btn)
+
+        self.cancel_btn = QtWidgets.QPushButton("⛔ Отмена")
+        self.cancel_btn.setObjectName("CancelBtn")
+        self.cancel_btn.setMinimumHeight(45)
+        self.cancel_btn.setEnabled(True)
+        self.cancel_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.cancel_btn.clicked.connect(self.on_cancel)
+
+        self.action_stack.addWidget(self.start_btn)
+        self.action_stack.addWidget(self.cancel_btn)
+        self.action_stack.setCurrentWidget(self.start_btn)
+
+        self.action_stack.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        self.action_stack.setMinimumHeight(45)
 
     @QtCore.pyqtSlot(str)
     def append_log(self, text: str) -> None:
@@ -209,18 +236,41 @@ class MainWindow(QtWidgets.QMainWindow):
             self.append_log("❌ Перевод отменён: API ключ не настроен.\n")
             return
 
-        self.start_btn.setEnabled(False)
         self.choose_btn.setEnabled(False)
-        self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
-        self.worker = TranslateWorker(self.input_file, api_key, self)
+        self.cancel_btn.setEnabled(True)
+        self.cancel_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+        self.action_stack.setCurrentWidget(self.cancel_btn)
+
+        self.cancel_event = threading.Event()
+
+        self.worker = TranslateWorker(self.input_file, api_key, cancel_event=self.cancel_event, parent=self)
         self.worker.log.connect(self.append_log)
         self.worker.finished_ok.connect(self.on_finished_ok)
         self.worker.finished_fail.connect(self.on_finished_fail)
+        self.worker.finished_cancelled.connect(self.on_finished_cancelled)
         self.worker.start()
 
+    def on_cancel(self) -> None:
+        if self.worker is None or not self.worker.isRunning():
+            return
+
+        self.append_log("\n⛔ Запрошена отмена...\n")
+        try:
+            self.worker.request_cancel()
+        except Exception:
+            if self.cancel_event is not None:
+                self.cancel_event.set()
+
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+
     def on_finished_ok(self) -> None:
+        self.action_stack.setCurrentWidget(self.start_btn)
         self.start_btn.setEnabled(True)
+        self.cancel_btn.setEnabled(True)
+        self.cancel_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.choose_btn.setEnabled(True)
 
         self.choose_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
@@ -232,7 +282,26 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def on_finished_fail(self, detail: str) -> None:
         self.append_log("\n\n❌ Ошибка:\n" + (detail or "") + "\n")
+        self.action_stack.setCurrentWidget(self.start_btn)
         self.start_btn.setEnabled(True)
+        self.cancel_btn.setEnabled(True)
+        self.cancel_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.choose_btn.setEnabled(True)
+
+        self.choose_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.start_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+        if not self.input_file:
+            self.start_btn.setEnabled(False)
+            self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+
+    def on_finished_cancelled(self) -> None:
+        self.append_log("\n⛔ Перевод отменён. Результат не сохранён.\n")
+
+        self.action_stack.setCurrentWidget(self.start_btn)
+        self.start_btn.setEnabled(True)
+        self.cancel_btn.setEnabled(True)
+        self.cancel_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.choose_btn.setEnabled(True)
 
         self.choose_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)

@@ -2,10 +2,17 @@ import os
 import sys
 import time
 import re
+import threading
+from concurrent.futures import CancelledError
 from translator import Translator
 from excel_app import ExcelApp, cleanup_excel
 
 _HAS_LETTERS_RE = re.compile(r"[A-Za-zА-Яа-яЁё]", re.UNICODE)
+
+
+def _check_cancel(cancel_event: threading.Event | None) -> None:
+    if cancel_event is not None and cancel_event.is_set():
+        raise CancelledError()
 
 def _should_translate_text(text: str) -> bool:
     """Определяет, нужно ли переводить строку.
@@ -23,11 +30,13 @@ def _should_translate_text(text: str) -> bool:
 
     return True
 
-def main(input_file, api_key: str):
+def main(input_file, api_key: str, cancel_event: threading.Event | None = None):
     try:
         start_time = time.time()
 
-        translator = Translator(api_key)
+        _check_cancel(cancel_event)
+
+        translator = Translator(api_key, cancel_event=cancel_event)
 
         if not input_file:
             raise ValueError("Не указан входной файл (.xlsx).")
@@ -49,12 +58,16 @@ def main(input_file, api_key: str):
             output_file = os.path.join(output_dir, f"{base_output_name} ({index}){extension}")
             index += 1
 
+        _check_cancel(cancel_event)
+
         with ExcelApp() as exel_app:
             with exel_app.open_workbook(input_file) as workbook:
         
                 print("⏳ Перевод названий листов...")
+                _check_cancel(cancel_event)
                 sheet_batch = {f"sh_{i}": sheet.Name for i, sheet in enumerate(workbook.Sheets)}
                 translated_sheet_data = translator.translate_batch(sheet_batch)
+                _check_cancel(cancel_event)
                 
                 if translated_sheet_data:
                     for i, sheet in enumerate(workbook.Sheets):
@@ -63,6 +76,7 @@ def main(input_file, api_key: str):
                 total_sheets = workbook.Sheets.Count
 
                 for index, sheet in enumerate(workbook.Sheets, 1):
+                    _check_cancel(cancel_event)
                     sys.stdout.write(f"⏳ Лист [{index}/{total_sheets}]: {sheet.Name} —> Сбор данных...")
                     sys.stdout.flush()
                     used_range = sheet.UsedRange
@@ -70,6 +84,7 @@ def main(input_file, api_key: str):
                     unique_texts_to_translate = set() 
                     
                     for r in range(1, used_range.Rows.Count + 1):
+                        _check_cancel(cancel_event)
                         for c in range(1, used_range.Columns.Count + 1):
                             cell = used_range.Cells(r, c)
                             val = cell.Value
@@ -80,6 +95,7 @@ def main(input_file, api_key: str):
                                     unique_texts_to_translate.add(text)
 
                     for chart_obj in sheet.ChartObjects():
+                        _check_cancel(cancel_event)
                         chart = chart_obj.Chart
                         if chart.HasTitle:
                             text = chart.ChartTitle.Text.strip()
@@ -88,6 +104,7 @@ def main(input_file, api_key: str):
                                 unique_texts_to_translate.add(text)
                         
                         for s_idx in range(1, chart.SeriesCollection().Count + 1):
+                            _check_cancel(cancel_event)
                             series = chart.SeriesCollection(s_idx)
                             try:
                                 text = series.Name.strip()
@@ -98,6 +115,7 @@ def main(input_file, api_key: str):
 
                         for ax_type in [1, 2]:
                             try:
+                                _check_cancel(cancel_event)
                                 axis = chart.Axes(ax_type)
                                 if axis.HasTitle:
                                     text = axis.AxisTitle.Text.strip()
@@ -115,10 +133,14 @@ def main(input_file, api_key: str):
                     else:
                         translations_map = {}
 
+                    _check_cancel(cancel_event)
+
                     sys.stdout.write(f" -> Применяю перевод...")
                     sys.stdout.flush()
 
-                    for identifier, original_text in cell_mapping:
+                    for i_map, (identifier, original_text) in enumerate(cell_mapping):
+                        if i_map % 200 == 0:
+                            _check_cancel(cancel_event)
                         translated_text = translations_map.get(original_text, original_text)
 
                         if translated_text == original_text:
@@ -152,6 +174,7 @@ def main(input_file, api_key: str):
                     sys.stdout.write("\n")
                     sys.stdout.flush()
 
+                _check_cancel(cancel_event)
                 workbook.SaveAs(output_file)
 
                 end_time = time.time()
@@ -160,6 +183,9 @@ def main(input_file, api_key: str):
                 print(f"\n✅ Готово! Результат в: {output_file}")
                 print(f"Токены: {translator.usage.total_tokens} | Стоимость: ${translator.total_cost_usd:.4f}")
                 print(f"Общее время: {int(duration // 60)} мин. {int(duration % 60)} сек.\n")
+
+    except CancelledError:
+        raise
 
     except Exception as e:
         print(f"\n\033[31m❌ {e}\033[0m\n")

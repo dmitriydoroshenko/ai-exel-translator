@@ -1,4 +1,6 @@
 import json
+import threading
+from concurrent.futures import CancelledError
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Set
 from openai import OpenAI
@@ -54,6 +56,7 @@ class Translator:
         price_in_per_1m: float = 1.75,
         price_out_per_1m: float = 14.00,
         system_role: str = SYSTEM_ROLE,
+        cancel_event: threading.Event | None = None,
     ) -> None:
         self.api_key = api_key
         self.client = OpenAI(api_key=self.api_key)
@@ -62,11 +65,17 @@ class Translator:
         self.timeout_s = timeout_s
         self.system_role = system_role
 
+        self.cancel_event = cancel_event
+
         self.price_in_per_1m = price_in_per_1m
         self.price_out_per_1m = price_out_per_1m
         self.usage = UsageTotals()
 
         self.cache: Dict[str, str] = {}
+
+    def _check_cancel(self) -> None:
+        if self.cancel_event is not None and self.cancel_event.is_set():
+            raise CancelledError()
 
     def translate_batch(self, batch_dict: Dict[str, str]) -> Dict[str, str]:
         """Отправляет пачку {id: text} на перевод в OpenAI.
@@ -74,6 +83,8 @@ class Translator:
         """
         if not batch_dict:
             return {}
+
+        self._check_cancel()
 
         try:
             response = self.client.chat.completions.create(
@@ -85,6 +96,8 @@ class Translator:
                 response_format={"type": "json_object"},
                 timeout=self.timeout_s,
             )
+
+            self._check_cancel()
 
             usage = getattr(response, "usage", None)
             if usage is not None:
@@ -105,11 +118,16 @@ class Translator:
 
             return result if result else {}
 
+        except CancelledError:
+            raise
+
         except Exception as e:
             raise RuntimeError(f"API_ERROR: {e}") from e
 
     def ensure_translated(self, texts: Iterable[str]) -> None:
         """Переводит все строки, которых ещё нет в кеше, используя батчинг"""
+
+        self._check_cancel()
 
         unique: List[str] = []
         for t in texts:
@@ -120,11 +138,14 @@ class Translator:
             return
 
         for i in range(0, len(unique), self.batch_size):
+            self._check_cancel()
             chunk = unique[i : i + self.batch_size]
             batch = {f"id_{j}": text for j, text in enumerate(chunk)}
             res = self.translate_batch(batch)
 
             for batch_id, trans_text in res.items():
+                if (hash(batch_id) & 0xF) == 0:
+                    self._check_cancel()
                 orig_text = batch.get(batch_id)
                 if orig_text is None:
                     continue
