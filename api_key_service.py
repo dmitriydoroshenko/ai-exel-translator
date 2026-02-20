@@ -1,5 +1,5 @@
 from concurrent.futures import CancelledError
-from typing import Optional, Tuple
+from typing import Tuple
 from PyQt6.QtCore import QSettings, Qt
 from PyQt6.QtWidgets import QApplication, QInputDialog, QLineEdit, QMessageBox
 from openai import OpenAI
@@ -39,92 +39,79 @@ def validate_api_key(api_key: str) -> Tuple[bool, str]:
 
         return False, msg_label
 
-def get_openai_api_key() -> Optional[str]:
-    """Возвращает валидный OpenAI API Key.
-
-    Returns:
-        str: валидный ключ
-        None: если пользователь отменил ввод (Cancel)
-    """
-    settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
-    api_key = (settings.value(SETTINGS_KEY, "") or "").strip()
-
-    parent = QApplication.activeWindow()
-
-    while True:
-        if api_key:
-            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            QApplication.processEvents()
-            try:
-                is_valid, _error_msg = validate_api_key(api_key)
-            finally:
-                QApplication.restoreOverrideCursor()
-
-            if is_valid:
-                return api_key
-
-            QMessageBox.warning(
-                parent,
-                "Ошибка API ключа",
-                f"Сохраненный ключ невалиден, введите новый ключ\n\nОшибка:\n{_error_msg}",
-            )
-            api_key = ""
-            continue
-
-        key, ok = QInputDialog.getText(
-            parent,
-            "Настройка API",
-            "Введите ваш OpenAI API Key (ключ будет проверен и сохранен в реестре):",
-            QLineEdit.EchoMode.Password,
-            "",
-        )
-        key = (key or "").strip()
-
-        if ok and not key:
-            QMessageBox.warning(
-                parent,
-                "Пустой ключ",
-                "Поле API ключа пустое. Пожалуйста, введите ключ или нажмите Cancel для выхода.",
-            )
-            api_key = ""
-            continue
-
-        if ok and key:
-            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            QApplication.processEvents()
-            try:
-                is_valid, _error_msg = validate_api_key(key)
-            finally:
-                QApplication.restoreOverrideCursor()
-
-            if is_valid:
-                settings.setValue(SETTINGS_KEY, key)
-                QMessageBox.information(parent, "Успех", "API ключ успешно проверен и сохранен!")
-                return key
-
-            QMessageBox.critical(
-                parent,
-                "Ошибка",
-                f"Ключ не прошел проверку\n\nОшибка:\n{_error_msg}",
-            )
-            api_key = ""
-            continue
-
-        return None
-
 def get_openai_client() -> OpenAI:
-    """Создаёт и возвращает OpenAI client.
+    """Создаёт и возвращает OpenAI client"""
 
-    Raises:
-        RuntimeError: если не удалось получить ключ из-за ошибки.
-        CancelledError: если пользователь отменил ввод ключа.
-    """
     try:
-        api_key = get_openai_api_key()
+        settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        api_key = (settings.value(SETTINGS_KEY, "") or "").strip()
+        parent = QApplication.activeWindow()
+
+        while True:
+            # 1) Если ключ есть в настройках — проверяем его и используем.
+            if api_key:
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+                QApplication.processEvents()
+                try:
+                    is_valid, error_msg = validate_api_key(api_key)
+                finally:
+                    QApplication.restoreOverrideCursor()
+
+                if is_valid:
+                    return OpenAI(api_key=api_key)
+
+                QMessageBox.warning(
+                    parent,
+                    "Ошибка API ключа",
+                    "Сохраненный ключ невалиден, введите новый ключ"
+                    f"\n\nОшибка:\n{error_msg}",
+                )
+                api_key = ""
+                continue
+
+            # 2) Запрашиваем ключ у пользователя.
+            key, ok = QInputDialog.getText(
+                parent,
+                "Настройка API",
+                "Введите ваш OpenAI API Key (ключ будет проверен и сохранен в реестре):",
+                QLineEdit.EchoMode.Password,
+                "",
+            )
+            key = (key or "").strip()
+
+            if ok and not key:
+                QMessageBox.warning(
+                    parent,
+                    "Пустой ключ",
+                    "Поле API ключа пустое. Пожалуйста, введите ключ или нажмите Cancel для выхода.",
+                )
+                api_key = ""
+                continue
+
+            if ok and key:
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+                QApplication.processEvents()
+                try:
+                    is_valid, error_msg = validate_api_key(key)
+                finally:
+                    QApplication.restoreOverrideCursor()
+
+                if is_valid:
+                    settings.setValue(SETTINGS_KEY, key)
+                    QMessageBox.information(parent, "Успех", "API ключ успешно проверен и сохранен!")
+                    return OpenAI(api_key=key)
+
+                QMessageBox.critical(
+                    parent,
+                    "Ошибка",
+                    f"Ключ не прошел проверку\n\nОшибка:\n{error_msg}",
+                )
+                api_key = ""
+                continue
+
+            raise CancelledError("❌ Перевод отменён: API ключ не настроен.")
+
+    except CancelledError:
+        raise
     except Exception as e:
         raise RuntimeError(f"Не удалось получить OpenAI API ключ: {e}") from e
-
-    if not api_key:
-        raise CancelledError("❌ Перевод отменён: API ключ не настроен.")
-
-    return OpenAI(api_key=api_key)
