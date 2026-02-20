@@ -6,7 +6,7 @@ from concurrent.futures import CancelledError
 import pythoncom
 from wakepy import keep
 from PyQt6 import QtCore, QtGui, QtWidgets
-import core
+import main as translator_main
 
 
 def _load_app_icon() -> QtGui.QIcon:
@@ -84,7 +84,7 @@ class TranslateWorker(QtCore.QThread):
             sys.stderr = err_stream
 
             with keep.running():
-                core.main(self.input_file, cancel_event=self.cancel_event)
+                translator_main.main(self.input_file, cancel_event=self.cancel_event)
 
             self.finished_ok.emit()
 
