@@ -119,7 +119,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resize(550, 500)
 
         self.worker = None
-        self.input_file = None
+        self.input_file: str = ""
         self.cancel_event: threading.Event | None = None
 
         self._close_requested = False
@@ -214,10 +214,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def on_start(self) -> None:
         if self.worker is not None and self.worker.isRunning():
-            return
-
-        if not self.input_file:
-            self.append_log("⚠️ Сначала выберите .xlsx файл.\n")
             return
 
         try:
