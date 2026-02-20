@@ -4,6 +4,7 @@ from concurrent.futures import CancelledError
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Set
 from openai import OpenAI
+from api_key_service import get_openai_api_key
 
 SYSTEM_ROLE_ESSENCE = (
     "## Role\n"
@@ -49,7 +50,6 @@ class Translator:
 
     def __init__(
         self,
-        api_key: str,
         model: str = "gpt-5.2",
         batch_size: int = 30,
         timeout_s: int = 30,
@@ -58,6 +58,14 @@ class Translator:
         system_role: str = SYSTEM_ROLE,
         cancel_event: threading.Event | None = None,
     ) -> None:
+        try:
+            api_key = get_openai_api_key()
+        except Exception as e:
+            raise RuntimeError(f"Не удалось получить OpenAI API ключ: {e}") from e
+
+        if not api_key:
+            raise CancelledError("❌ Перевод отменён: API ключ не настроен.")
+
         self.api_key = api_key
         self.client = OpenAI(api_key=self.api_key)
         self.model = model
