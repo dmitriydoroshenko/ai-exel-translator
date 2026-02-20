@@ -16,12 +16,10 @@ def _check_cancel(cancel_event: threading.Event | None) -> None:
 
 def _should_translate_text(text: str) -> bool:
     """Определяет, нужно ли переводить строку.
-       Возвращает True, если текст содержит буквы
+       Возвращает True, если текст содержит буквы.
     """
-    if text is None:
-        return False
 
-    t = str(text).strip()
+    t = text.strip()
     if len(t) <= 1:
         return False
 

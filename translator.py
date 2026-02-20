@@ -131,7 +131,7 @@ class Translator:
 
         unique: List[str] = []
         for t in texts:
-            if t and t not in self.cache:
+            if t not in self.cache:
                 unique.append(t)
 
         if not unique:

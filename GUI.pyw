@@ -216,6 +216,12 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.worker is not None and self.worker.isRunning():
             return
 
+        if not self.input_file:
+            self.append_log("❌ Файл не выбран. Сначала выберите .xlsx файл.\n")
+            self.start_btn.setEnabled(False)
+            self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+            return
+
         try:
             api_key = get_openai_api_key()
         except Exception as e:
@@ -266,10 +272,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.choose_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.start_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
 
-        if not self.input_file:
-            self.start_btn.setEnabled(False)
-            self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
-
         if self._close_requested:
             self._force_close = True
             QtCore.QTimer.singleShot(0, self.close)
@@ -284,10 +286,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.choose_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.start_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-
-        if not self.input_file:
-            self.start_btn.setEnabled(False)
-            self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
         if self._close_requested:
             self._force_close = True
@@ -304,10 +302,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.choose_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.start_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-
-        if not self.input_file:
-            self.start_btn.setEnabled(False)
-            self.start_btn.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
         if self._close_requested:
             self._force_close = True
