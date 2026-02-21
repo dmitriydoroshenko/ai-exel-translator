@@ -89,19 +89,15 @@ class TranslateWorker(QtCore.QThread):
 
             self.finished_ok.emit()
 
-        except SystemExit as e:
-            code = getattr(e, "code", 1)
-            if code in (0, None):
-                self.finished_ok.emit()
-            else:
-                self.finished_fail.emit(f"SystemExit: {code}")
-
         except CancelledError:
             self.finished_cancelled.emit()
 
         except Exception as e:
-            detail = "".join(traceback.format_exception(type(e), e, e.__traceback__))
-            self.finished_fail.emit(detail)
+            if isinstance(e, (ValueError, FileNotFoundError, RuntimeError)):
+                self.finished_fail.emit(str(e) or repr(e))
+            else:
+                detail = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+                self.finished_fail.emit(detail)
 
         finally:
             sys.stdout, sys.stderr = old_out, old_err

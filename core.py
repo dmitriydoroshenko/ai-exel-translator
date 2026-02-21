@@ -28,162 +28,160 @@ def _should_translate_text(text: str) -> bool:
     return True
 
 def run_excel_translation(input_file, api_key: str, cancel_event: threading.Event | None = None):
-    try:
-        start_time = time.time()
+    start_time = time.time()
+    _check_cancel(cancel_event)
+    translator = Translator(api_key, cancel_event=cancel_event)
 
-        _check_cancel(cancel_event)
+    if not input_file:
+        raise ValueError("Не указан входной файл (.xlsx).")
 
-        translator = Translator(api_key, cancel_event=cancel_event)
+    input_file = os.path.abspath(input_file)
 
-        if not input_file:
-            raise ValueError("Не указан входной файл (.xlsx).")
+    if not os.path.isfile(input_file):
+        raise FileNotFoundError(f"Файл не найден: {input_file}")
 
-        input_file = os.path.abspath(input_file)
+    name_part, extension = os.path.splitext(os.path.basename(input_file))
+    if extension.lower() != ".xlsx":
+        raise ValueError("Поддерживаются только файлы .xlsx")
 
-        if not os.path.isfile(input_file):
-            raise FileNotFoundError(f"Файл не найден: {input_file}")
+    output_dir = os.path.dirname(input_file)
+    base_output_name = f"{name_part}_cn"
+    output_file = os.path.join(output_dir, f"{base_output_name}{extension}")
+    index = 1
+    while os.path.exists(output_file):
+        output_file = os.path.join(output_dir, f"{base_output_name} ({index}){extension}")
+        index += 1
 
-        name_part, extension = os.path.splitext(os.path.basename(input_file))
-        if extension.lower() != ".xlsx":
-            raise ValueError("Поддерживаются только файлы .xlsx")
+    _check_cancel(cancel_event)
 
-        output_dir = os.path.dirname(input_file)
-        base_output_name = f"{name_part}_cn"
-        output_file = os.path.join(output_dir, f"{base_output_name}{extension}")
-        index = 1
-        while os.path.exists(output_file):
-            output_file = os.path.join(output_dir, f"{base_output_name} ({index}){extension}")
-            index += 1
+    with ExcelApp() as exel_app:
+        with exel_app.open_workbook(input_file) as workbook:
 
-        _check_cancel(cancel_event)
+            print("⏳ Перевод названий листов...")
+            _check_cancel(cancel_event)
+            sheet_batch = {f"sh_{i}": sheet.Name for i, sheet in enumerate(workbook.Sheets)}
+            translated_sheet_data = translator.translate_batch(sheet_batch)
+            _check_cancel(cancel_event)
 
-        with ExcelApp() as exel_app:
-            with exel_app.open_workbook(input_file) as workbook:
-        
-                print("⏳ Перевод названий листов...")
+            if translated_sheet_data:
+                for i, sheet in enumerate(workbook.Sheets):
+                    sheet.Name = translated_sheet_data.get(f"sh_{i}", sheet.Name)
+
+            total_sheets = workbook.Sheets.Count
+
+            for index, sheet in enumerate(workbook.Sheets, 1):
                 _check_cancel(cancel_event)
-                sheet_batch = {f"sh_{i}": sheet.Name for i, sheet in enumerate(workbook.Sheets)}
-                translated_sheet_data = translator.translate_batch(sheet_batch)
-                _check_cancel(cancel_event)
-                
-                if translated_sheet_data:
-                    for i, sheet in enumerate(workbook.Sheets):
-                        sheet.Name = translated_sheet_data.get(f"sh_{i}", sheet.Name)
+                sys.stdout.write(f"⏳ Лист [{index}/{total_sheets}]: {sheet.Name} —> Сбор данных...")
+                sys.stdout.flush()
+                used_range = sheet.UsedRange
+                cell_mapping = []
+                unique_texts_to_translate = set()
 
-                total_sheets = workbook.Sheets.Count
-
-                for index, sheet in enumerate(workbook.Sheets, 1):
+                for r in range(1, used_range.Rows.Count + 1):
                     _check_cancel(cancel_event)
-                    sys.stdout.write(f"⏳ Лист [{index}/{total_sheets}]: {sheet.Name} —> Сбор данных...")
-                    sys.stdout.flush()
-                    used_range = sheet.UsedRange
-                    cell_mapping = []  
-                    unique_texts_to_translate = set() 
-                    
-                    for r in range(1, used_range.Rows.Count + 1):
-                        _check_cancel(cancel_event)
-                        for c in range(1, used_range.Columns.Count + 1):
-                            cell = used_range.Cells(r, c)
-                            val = cell.Value
-                            if isinstance(val, str) and not str(cell.Formula).startswith('='):
-                                text = val.strip()
-                                if _should_translate_text(text):
-                                    cell_mapping.append((cell.GetAddress(), text))
-                                    unique_texts_to_translate.add(text)
-
-                    for chart_obj in sheet.ChartObjects():
-                        _check_cancel(cancel_event)
-                        chart = chart_obj.Chart
-                        if chart.HasTitle:
-                            text = chart.ChartTitle.Text.strip()
+                    for c in range(1, used_range.Columns.Count + 1):
+                        cell = used_range.Cells(r, c)
+                        val = cell.Value
+                        if isinstance(val, str) and not str(cell.Formula).startswith("="):
+                            text = val.strip()
                             if _should_translate_text(text):
-                                cell_mapping.append((f"CHART_TITLE:{chart_obj.Name}", text))
+                                cell_mapping.append((cell.GetAddress(), text))
                                 unique_texts_to_translate.add(text)
-                        
-                        for s_idx in range(1, chart.SeriesCollection().Count + 1):
-                            _check_cancel(cancel_event)
-                            series = chart.SeriesCollection(s_idx)
-                            try:
-                                text = series.Name.strip()
-                                if _should_translate_text(text):
-                                    cell_mapping.append((f"CHART_SERIES:{chart_obj.Name}:{s_idx}", text))
-                                    unique_texts_to_translate.add(text)
-                            except: pass
 
-                        for ax_type in [1, 2]:
-                            try:
-                                _check_cancel(cancel_event)
-                                axis = chart.Axes(ax_type)
-                                if axis.HasTitle:
-                                    text = axis.AxisTitle.Text.strip()
-                                    if _should_translate_text(text):
-                                        cell_mapping.append((f"CHART_AXIS:{chart_obj.Name}:{ax_type}", text))
-                                        unique_texts_to_translate.add(text)
-                            except: pass
-
-                    if unique_texts_to_translate:
-                        unique_list = list(unique_texts_to_translate)
-                        sys.stdout.write(f" -> Перевод {len(unique_list)} строк...")
-                        sys.stdout.flush()
-
-                        translations_map = translator.translate_texts(unique_list)
-                    else:
-                        translations_map = {}
-
+                for chart_obj in sheet.ChartObjects():
                     _check_cancel(cancel_event)
+                    chart = chart_obj.Chart
+                    if chart.HasTitle:
+                        text = chart.ChartTitle.Text.strip()
+                        if _should_translate_text(text):
+                            cell_mapping.append((f"CHART_TITLE:{chart_obj.Name}", text))
+                            unique_texts_to_translate.add(text)
 
-                    sys.stdout.write(f" -> Применяю перевод...")
-                    sys.stdout.flush()
+                    for s_idx in range(1, chart.SeriesCollection().Count + 1):
+                        _check_cancel(cancel_event)
+                        series = chart.SeriesCollection(s_idx)
+                        try:
+                            text = series.Name.strip()
+                            if _should_translate_text(text):
+                                cell_mapping.append((f"CHART_SERIES:{chart_obj.Name}:{s_idx}", text))
+                                unique_texts_to_translate.add(text)
+                        except:
+                            pass
 
-                    for i_map, (identifier, original_text) in enumerate(cell_mapping):
-                        if i_map % 200 == 0:
+                    for ax_type in [1, 2]:
+                        try:
                             _check_cancel(cancel_event)
-                        translated_text = translations_map.get(original_text, original_text)
+                            axis = chart.Axes(ax_type)
+                            if axis.HasTitle:
+                                text = axis.AxisTitle.Text.strip()
+                                if _should_translate_text(text):
+                                    cell_mapping.append((f"CHART_AXIS:{chart_obj.Name}:{ax_type}", text))
+                                    unique_texts_to_translate.add(text)
+                        except:
+                            pass
 
-                        if translated_text == original_text:
-                            continue
-                        
-                        if identifier.startswith("CHART_TITLE:"):
-                            c_name = identifier.replace("CHART_TITLE:", "")
-                            chart = sheet.ChartObjects(c_name).Chart
-                            chart.ChartTitle.Text = translated_text
-                            try: chart.ChartTitle.Font.Name = "Microsoft YaHei"
-                            except: pass
-                        
-                        elif identifier.startswith("CHART_SERIES:"):
-                            parts = identifier.split(":")
-                            series = sheet.ChartObjects(parts[1]).Chart.SeriesCollection(int(parts[2]))
-                            series.Name = translated_text
-                        
-                        elif identifier.startswith("CHART_AXIS:"):
-                            parts = identifier.split(":")
-                            axis = sheet.ChartObjects(parts[1]).Chart.Axes(int(parts[2]))
-                            axis.AxisTitle.Text = translated_text
-                            try: axis.AxisTitle.Font.Name = "Microsoft YaHei"
-                            except: pass
-                        
-                        else:
-                            cell_range = sheet.Range(identifier)
-                            cell_range.Value = translated_text
-                            try: cell_range.Font.Name = "Microsoft YaHei"
-                            except: pass
-
-                    sys.stdout.write("\n")
+                if unique_texts_to_translate:
+                    unique_list = list(unique_texts_to_translate)
+                    sys.stdout.write(f" -> Перевод {len(unique_list)} строк...")
                     sys.stdout.flush()
+
+                    translations_map = translator.translate_texts(unique_list)
+                else:
+                    translations_map = {}
 
                 _check_cancel(cancel_event)
-                workbook.SaveAs(output_file)
 
-                end_time = time.time()
-                duration = end_time - start_time
+                sys.stdout.write(" -> Применяю перевод...")
+                sys.stdout.flush()
 
-                print(f"\n✅ Готово! Результат в: {output_file}")
-                print(f"Токены: {translator.usage.total_tokens} | Стоимость: ${translator.total_cost_usd:.4f}")
-                print(f"Общее время: {int(duration // 60)} мин. {int(duration % 60)} сек.\n")
+                for i_map, (identifier, original_text) in enumerate(cell_mapping):
+                    if i_map % 200 == 0:
+                        _check_cancel(cancel_event)
+                    translated_text = translations_map.get(original_text, original_text)
 
-    except CancelledError:
-        raise
+                    if translated_text == original_text:
+                        continue
 
-    except Exception as e:
-        print(f"\n\033[31m❌ {e}\033[0m\n")
-        sys.exit(1)
+                    if identifier.startswith("CHART_TITLE:"):
+                        c_name = identifier.replace("CHART_TITLE:", "")
+                        chart = sheet.ChartObjects(c_name).Chart
+                        chart.ChartTitle.Text = translated_text
+                        try:
+                            chart.ChartTitle.Font.Name = "Microsoft YaHei"
+                        except:
+                            pass
+
+                    elif identifier.startswith("CHART_SERIES:"):
+                        parts = identifier.split(":")
+                        series = sheet.ChartObjects(parts[1]).Chart.SeriesCollection(int(parts[2]))
+                        series.Name = translated_text
+
+                    elif identifier.startswith("CHART_AXIS:"):
+                        parts = identifier.split(":")
+                        axis = sheet.ChartObjects(parts[1]).Chart.Axes(int(parts[2]))
+                        axis.AxisTitle.Text = translated_text
+                        try:
+                            axis.AxisTitle.Font.Name = "Microsoft YaHei"
+                        except:
+                            pass
+
+                    else:
+                        cell_range = sheet.Range(identifier)
+                        cell_range.Value = translated_text
+                        try:
+                            cell_range.Font.Name = "Microsoft YaHei"
+                        except:
+                            pass
+
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+
+            _check_cancel(cancel_event)
+            workbook.SaveAs(output_file)
+
+            end_time = time.time()
+            duration = end_time - start_time
+
+            print(f"\n✅ Готово! Результат в: {output_file}")
+            print(f"Токены: {translator.usage.total_tokens} | Стоимость: ${translator.total_cost_usd:.4f}")
+            print(f"Общее время: {int(duration // 60)} мин. {int(duration % 60)} сек.\n")
