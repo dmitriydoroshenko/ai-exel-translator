@@ -6,9 +6,8 @@ from concurrent.futures import CancelledError
 import pythoncom
 from wakepy import keep
 from PyQt6 import QtCore, QtGui, QtWidgets
-import main as translator_main
+from core import run_excel_translation
 from api_key_service import get_openai_api_key
-
 
 def _load_app_icon() -> QtGui.QIcon:
     """Загружает иконку приложения"""
@@ -86,7 +85,7 @@ class TranslateWorker(QtCore.QThread):
             sys.stderr = err_stream
 
             with keep.running():
-                translator_main.main(self.input_file, self.api_key, cancel_event=self.cancel_event)
+                run_excel_translation(self.input_file, self.api_key, cancel_event=self.cancel_event)
 
             self.finished_ok.emit()
 

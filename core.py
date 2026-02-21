@@ -9,7 +9,6 @@ from excel_app import ExcelApp
 
 _HAS_LETTERS_RE = re.compile(r"[A-Za-zА-Яа-яЁё]", re.UNICODE)
 
-
 def _check_cancel(cancel_event: threading.Event | None) -> None:
     if cancel_event is not None and cancel_event.is_set():
         raise CancelledError()
@@ -28,7 +27,7 @@ def _should_translate_text(text: str) -> bool:
 
     return True
 
-def main(input_file, api_key: str, cancel_event: threading.Event | None = None):
+def run_excel_translation(input_file, api_key: str, cancel_event: threading.Event | None = None):
     try:
         start_time = time.time()
 
