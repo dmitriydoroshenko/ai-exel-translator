@@ -272,7 +272,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtCore.QTimer.singleShot(0, self.close)
 
     def on_finished_fail(self, detail: str) -> None:
-        self.append_log("\n\n❌ Ошибка:\n" + (detail or "") + "\n")
+        self.append_log("\n\n❌ " + (detail or "Unknown error") + "\n")
         self.action_stack.setCurrentWidget(self.start_btn)
         self.start_btn.setEnabled(True)
         self.cancel_btn.setEnabled(True)
